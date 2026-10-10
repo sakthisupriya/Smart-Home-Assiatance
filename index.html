@@ -1,0 +1,2478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Voice Controlled Smart Home Assistance</title>
+<style>
+:root{
+ --bg:#07111f;--panel:rgba(15,28,48,.78);--panel2:#0d1c31;--text:#eef6ff;
+ --muted:#91a5bd;--accent:#62d8ff;--accent2:#8b7cff;--green:#39e58c;
+ --yellow:#ffd166;--red:#ff647c;--line:rgba(255,255,255,.09);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,Segoe UI,Arial,sans-serif;background:
+radial-gradient(circle at 10% 0%,rgba(98,216,255,.12),transparent 30%),
+radial-gradient(circle at 90% 10%,rgba(139,124,255,.14),transparent 28%),var(--bg);
+color:var(--text);min-height:100vh}
+button{font:inherit}.app{display:flex;min-height:100vh}
+.sidebar{width:250px;padding:24px 16px;border-right:1px solid var(--line);background:rgba(5,14,27,.82);backdrop-filter:blur(18px);position:fixed;inset:0 auto 0 0;z-index:5}
+.logo{display:flex;gap:12px;align-items:center;margin-bottom:30px}.logo-icon{width:45px;height:45px;border-radius:14px;
+display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),var(--accent2));font-size:23px;box-shadow:0 0 30px rgba(98,216,255,.25)}
+.logo h2{font-size:15px}.logo small{color:var(--muted)}
+.nav button{width:100%;border:0;background:transparent;color:var(--muted);padding:13px 14px;text-align:left;border-radius:12px;margin:4px 0;cursor:pointer}
+.nav button.active,.nav button:hover{background:rgba(98,216,255,.09);color:white}.side-bottom{position:absolute;bottom:20px;left:16px;right:16px}
+.privacy{padding:13px;border:1px solid var(--line);border-radius:14px;color:var(--muted);font-size:12px}.dot{display:inline-block;width:8px;height:8px;background:var(--green);border-radius:50%;margin-right:6px}
+.main{margin-left:250px;width:calc(100% - 250px);padding:28px;max-width:1600px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:18px;margin-bottom:25px}.eyebrow{color:var(--accent);font-size:12px;text-transform:uppercase;letter-spacing:2px}.top h1{font-size:clamp(25px,3vw,40px);margin-top:6px}.top p{color:var(--muted);margin-top:6px}
+.actions{display:flex;gap:10px}.iconbtn{width:43px;height:43px;border:1px solid var(--line);background:var(--panel);color:white;border-radius:12px;cursor:pointer}.iconbtn:hover{border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}.full{grid-column:1/-1}
+.card{background:linear-gradient(145deg,rgba(18,35,59,.86),rgba(8,20,35,.88));border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.18);backdrop-filter:blur(15px)}
+.cardhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.card h2{font-size:17px}.muted{color:var(--muted);font-size:13px}
+.voice{display:grid;grid-template-columns:170px 1fr;gap:24px;align-items:center}.orb{height:150px;width:150px;border-radius:50%;margin:auto;display:grid;place-items:center;
+background:radial-gradient(circle at 35% 30%,#b7f3ff,#3ebeea 38%,#6557e9 70%,#17143e);box-shadow:0 0 0 12px rgba(98,216,255,.04),0 0 55px rgba(98,216,255,.22);cursor:pointer;border:0;color:white;font-size:50px;transition:.3s}
+.orb:hover{transform:scale(1.04)}.orb.listening{animation:pulse 1.2s infinite}.voice-title{font-size:25px;font-weight:700}.voice-state{color:var(--accent);margin:8px 0 15px}.command{background:#071322;border:1px solid var(--line);padding:12px 14px;border-radius:12px;min-height:46px}.suggestions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.chip{border:1px solid var(--line);background:rgba(255,255,255,.04);color:#c8d6e8;padding:8px 10px;border-radius:20px;cursor:pointer;font-size:12px}.chip:hover{border-color:var(--accent)}
+@keyframes pulse{50%{box-shadow:0 0 0 22px rgba(98,216,255,0),0 0 65px rgba(98,216,255,.45)}}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{background:rgba(255,255,255,.035);border:1px solid var(--line);padding:15px;border-radius:14px}.stat .big{font-size:25px;font-weight:800;margin:5px 0}.green{color:var(--green)}.yellow{color:var(--yellow)}.red{color:var(--red)}
+.rooms{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.room{padding:16px;border:1px solid var(--line);border-radius:16px;cursor:pointer;background:rgba(255,255,255,.025);transition:.25s}.room:hover,.room.selected{border-color:rgba(98,216,255,.55);transform:translateY(-2px)}.room-icon{font-size:28px}.room strong{display:block;margin:8px 0 4px}.room span{font-size:12px;color:var(--muted)}
+.devices{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.device{padding:15px;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.025);position:relative}.device.on{border-color:rgba(98,216,255,.38);box-shadow:inset 0 0 25px rgba(98,216,255,.04)}
+
+/* ===== Per-device state theme =====
+   Only the device card changes:
+   ON  -> bright
+   OFF -> dark
+   The rest of the dashboard is NOT changed.
+*/
+.device{
+  transition:background .25s ease,color .25s ease,border-color .25s ease,
+             box-shadow .25s ease,transform .18s ease;
+}
+.device:not(.on){
+  background:#0b1728 !important;
+  border-color:#22334a !important;
+  color:#d6e0ec !important;
+  box-shadow:none !important;
+}
+.device:not(.on) .device-name{color:#c2cedd !important;}
+.device:not(.on) .device-room{color:#71839a !important;}
+.device:not(.on) .device-icon{opacity:.72;filter:grayscale(.45);}
+
+.device.on{
+  background:linear-gradient(145deg,#ffffff 0%,#eef7ff 100%) !important;
+  border-color:#8ccff0 !important;
+  color:#172235 !important;
+  box-shadow:0 10px 28px rgba(98,216,255,.16),
+             inset 0 0 22px rgba(255,255,255,.55) !important;
+}
+.device.on .device-name{color:#172235 !important;font-weight:800;}
+.device.on .device-room{color:#5d6c80 !important;}
+.device.on .device-icon{filter:brightness(1.08) saturate(1.15);}
+
+/* Keep device-state colors even if the global Bright theme is selected. */
+body.light .device:not(.on){
+  background:#0b1728 !important;
+  border-color:#22334a !important;
+  color:#d6e0ec !important;
+}
+body.light .device:not(.on) .device-name{color:#c2cedd !important;}
+body.light .device:not(.on) .device-room{color:#71839a !important;}
+body.light .device.on{
+  background:linear-gradient(145deg,#ffffff 0%,#eef7ff 100%) !important;
+  border-color:#8ccff0 !important;
+  color:#172235 !important;
+}
+
+.device-icon{font-size:25px}.device-name{font-weight:700;margin:8px 0 3px}.device-room{font-size:11px;color:var(--muted)}.toggle{margin-top:12px;width:44px;height:24px;border-radius:20px;border:0;background:#26374d;cursor:pointer;position:relative}.toggle:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:white;top:3px;left:3px;transition:.2s}.device.on .toggle{background:var(--accent)}.device.on .toggle:after{left:23px}
+.sensors{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.sensor{padding:13px;border-radius:14px;background:rgba(255,255,255,.035);border:1px solid var(--line)}.sensor-icon{font-size:22px}.sensor-name{font-size:11px;color:var(--muted);margin-top:7px}.sensor-value{font-weight:800;margin-top:4px}
+.insights{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.insight{padding:15px;border-radius:15px;background:linear-gradient(135deg,rgba(98,216,255,.07),rgba(139,124,255,.06));border:1px solid var(--line)}.insight b{display:block;margin:7px 0}.insight p{font-size:12px;color:var(--muted);line-height:1.5}
+.bottomgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.energy-wrap{display:flex;gap:25px;align-items:center}.energy-number{font-size:38px;font-weight:800}.bar{height:12px;background:#16263b;border-radius:10px;overflow:hidden;margin:12px 0}.bar span{display:block;height:100%;width:63%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:10px}.energy-meta{display:flex;justify-content:space-between;color:var(--muted);font-size:12px}.chart{height:120px;display:flex;align-items:end;gap:7px;margin-top:15px}.barcol{flex:1;background:linear-gradient(to top,var(--accent2),var(--accent));border-radius:6px 6px 2px 2px;min-height:18px;opacity:.8}
+.activity{max-height:190px;overflow:auto}.activity-item{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}.activity-item time{margin-left:auto;color:var(--muted);font-size:11px;white-space:nowrap}
+.safety{display:flex;align-items:center;gap:18px}.shield{font-size:55px}.safety h3{color:var(--green);margin-bottom:5px}.danger{background:var(--red);color:white;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;margin-left:auto}.danger:hover{filter:brightness(1.1)}
+.team{display:flex;flex-wrap:wrap;gap:9px}.member{padding:9px 12px;border-radius:20px;background:rgba(98,216,255,.07);border:1px solid var(--line);font-size:12px}
+.toast{position:fixed;right:25px;bottom:25px;background:#10243c;color:white;border:1px solid rgba(98,216,255,.4);padding:13px 17px;border-radius:12px;opacity:0;transform:translateY(20px);pointer-events:none;transition:.3s;z-index:20}.toast.show{opacity:1;transform:none}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;place-items:center;z-index:30}.modal.show{display:grid}.modalbox{width:min(520px,92%);background:#0d1c31;border:1px solid var(--line);border-radius:20px;padding:25px}.modalbox h2{margin-bottom:12px}.close{float:right;border:0;background:transparent;color:white;font-size:24px;cursor:pointer}
+@media(max-width:1100px){.sidebar{width:205px}.main{margin-left:205px;width:calc(100% - 205px)}.rooms{grid-template-columns:repeat(2,1fr)}.devices{grid-template-columns:repeat(2,1fr)}.sensors{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:800px){.sidebar{position:static;width:100%;height:auto}.app{display:block}.nav{display:flex;overflow:auto}.nav button{min-width:120px}.side-bottom{display:none}.main{margin:0;width:100%;padding:16px}.grid{grid-template-columns:1fr}.bottomgrid{grid-template-columns:1fr}.voice{grid-template-columns:1fr;text-align:center}.orb{width:120px;height:120px}.full{grid-column:auto}}
+@media(max-width:520px){.top{align-items:flex-start}.stats,.rooms,.devices,.sensors,.insights{grid-template-columns:1fr 1fr}.top h1{font-size:24px}.energy-wrap{display:block}}
+
+    /* Dashboard stays behind the intro until Enter is clicked */
+    
+    
+
+    /* Project intro / starting screen */
+    .intro-screen{
+      position:fixed; inset:0; z-index:9999; overflow:hidden;
+      display:flex; align-items:center; justify-content:center;
+      padding:28px;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(98,216,255,.16), transparent 30%),
+        radial-gradient(circle at 85% 80%, rgba(139,124,255,.18), transparent 32%),
+        linear-gradient(135deg,#050b15 0%,#07111f 48%,#0b1024 100%);
+      transition:opacity .55s ease, visibility .55s ease;
+    }
+    .intro-screen::before,
+    .intro-screen::after{
+      content:""; position:absolute; border-radius:50%; filter:blur(2px);
+      border:1px solid rgba(255,255,255,.07); pointer-events:none;
+    }
+    .intro-screen::before{width:520px;height:520px;left:-180px;top:-190px;box-shadow:0 0 120px rgba(98,216,255,.10);}
+    .intro-screen::after{width:620px;height:620px;right:-260px;bottom:-270px;box-shadow:0 0 140px rgba(139,124,255,.12);}
+    .intro-screen.hide{opacity:0;visibility:hidden;pointer-events:none;}
+    .intro-card{
+      position:relative; z-index:2; width:min(920px,100%);
+      padding:42px 42px 34px; text-align:center;
+      border:1px solid rgba(255,255,255,.12);
+      background:linear-gradient(145deg,rgba(15,28,48,.90),rgba(8,16,30,.82));
+      box-shadow:0 30px 90px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05);
+      backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+      border-radius:32px;
+    }
+    .intro-badge{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 13px;border-radius:999px;
+      color:#bdeeff;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;
+      border:1px solid rgba(98,216,255,.22);background:rgba(98,216,255,.07);
+    }
+    .intro-icon{
+      width:78px;height:78px;margin:22px auto 18px;border-radius:24px;
+      display:grid;place-items:center;font-size:38px;
+      background:linear-gradient(135deg,rgba(98,216,255,.20),rgba(139,124,255,.20));
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow:0 0 45px rgba(98,216,255,.12);
+    }
+    .intro-card h1{
+      margin:0 auto 12px;max-width:800px;
+      font-size:clamp(30px,5vw,58px);line-height:1.02;letter-spacing:-.04em;
+      background:linear-gradient(90deg,#fff,#bdeeff 48%,#b9b0ff);
+      -webkit-background-clip:text;background-clip:text;color:transparent;
+    }
+    .intro-subtitle{margin:0 auto 26px;color:#9fb0c7;font-size:15px;max-width:680px;line-height:1.7;}
+    .intro-tags{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin:0 auto 28px;}
+    .intro-tags span{
+      padding:8px 12px;border-radius:999px;background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.08);color:#cbd7e8;font-size:12px;
+    }
+    .intro-team{
+      display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+      margin:0 auto 28px;max-width:760px;
+    }
+    .intro-member{
+      padding:16px 12px;border-radius:18px;
+      background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.08);
+      transition:transform .25s ease,border-color .25s ease,background .25s ease;
+    }
+    .intro-member:hover{transform:translateY(-4px);border-color:rgba(98,216,255,.24);background:rgba(98,216,255,.055);}
+    .intro-member .avatar{
+      width:42px;height:42px;margin:0 auto 10px;border-radius:50%;
+      display:grid;place-items:center;font-weight:900;color:#07111f;
+      background:linear-gradient(135deg,#62d8ff,#a99dff);
+    }
+    .intro-member strong{display:block;font-size:13px;color:#fff;}
+    .intro-member small{display:block;margin-top:5px;color:#8495ad;font-size:11px;}
+    .enter-btn{
+      border:0;cursor:pointer;padding:14px 22px;border-radius:14px;
+      color:#06111d;font-weight:900;font-size:14px;letter-spacing:.01em;
+      background:linear-gradient(135deg,#62d8ff,#a99dff);
+      box-shadow:0 14px 35px rgba(98,216,255,.18);
+      transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;
+    }
+    .enter-btn:hover{transform:translateY(-2px);box-shadow:0 18px 42px rgba(98,216,255,.28);filter:saturate(1.08);}
+    .intro-note{margin:16px 0 0;color:#66778f;font-size:11px;}
+    @media (max-width:700px){
+      .intro-card{padding:30px 18px 24px;border-radius:24px;}
+      .intro-team{grid-template-columns:1fr;}
+      .intro-card h1{font-size:34px;}
+    }
+
+  
+    /* Mobile-first responsive enhancements */
+    html{scroll-behavior:smooth;}
+    body{overflow-x:hidden;}
+    button,.nav-btn,.chip,.room-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+
+    @media (max-width: 900px){
+      .app{grid-template-columns:1fr;}
+      .sidebar{
+        position:sticky;top:0;z-index:1000;width:100%;
+        height:auto;max-height:none;display:flex;align-items:center;
+        padding:10px 12px;border-right:0;border-bottom:1px solid rgba(255,255,255,.08);
+        backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
+      }
+      .brand{margin:0;flex:1;}
+      .brand small{display:none;}
+      .sidebar nav{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;}
+      .sidebar nav::-webkit-scrollbar{display:none;}
+      .nav-btn{white-space:nowrap;padding:10px 12px;}
+      .sidebar-bottom{display:none;}
+      .main{min-width:0;padding:18px 14px 30px;}
+      .topbar{gap:12px;align-items:flex-start;}
+      .topbar h1{font-size:clamp(24px,7vw,38px);}
+      .top-actions{flex-shrink:0;}
+      .dashboard-grid,.two-col,.three-col{grid-template-columns:1fr!important;}
+      .device-grid,.sensor-grid,.room-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+      .energy-chart{min-height:180px;}
+      .modal-card{width:calc(100% - 28px);max-height:88vh;overflow:auto;}
+    }
+
+    @media (max-width: 600px){
+      .main{padding:14px 10px 28px;}
+      .topbar{flex-direction:column;}
+      .top-actions{width:100%;display:flex;}
+      .top-actions button{flex:1;min-height:44px;}
+      .hero,.panel,.card{border-radius:18px;}
+      .panel{padding:15px;}
+      .section-head{gap:8px;align-items:flex-start;}
+      .section-head h2{font-size:18px;}
+      .device-grid,.sensor-grid,.room-grid{grid-template-columns:1fr;}
+      .device-card,.sensor-card{min-height:120px;}
+      .voice-orb{width:150px;height:150px;}
+      .command-box{flex-direction:column;}
+      .command-box button{width:100%;min-height:46px;}
+      .chip-row{overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;scrollbar-width:none;}
+      .chip-row::-webkit-scrollbar{display:none;}
+      .chip{white-space:nowrap;min-height:40px;}
+      .stat-grid{grid-template-columns:1fr 1fr;}
+      .stat-card{padding:14px;}
+      .stat-value{font-size:24px;}
+      .intro-screen{padding:12px;}
+      .intro-card{width:100%;padding:26px 16px 22px;border-radius:22px;}
+      .intro-icon{width:64px;height:64px;font-size:30px;margin:16px auto 14px;}
+      .intro-card h1{font-size:31px;}
+      .intro-subtitle{font-size:13px;line-height:1.6;margin-bottom:20px;}
+      .intro-tags{gap:7px;margin-bottom:20px;}
+      .intro-tags span{font-size:10px;padding:7px 9px;}
+      .intro-team{gap:8px;margin-bottom:20px;}
+      .intro-member{padding:12px 8px;}
+      .intro-member strong{font-size:12px;}
+      .enter-btn{width:100%;min-height:50px;font-size:13px;}
+      .intro-note{font-size:10px;}
+      .emergency-btn{width:100%;min-height:50px;}
+      table{font-size:12px;}
+    }
+
+    @media (max-width: 380px){
+      .brand strong{font-size:12px;}
+      .nav-btn{font-size:11px;padding:9px 10px;}
+      .stat-grid{grid-template-columns:1fr;}
+      .topbar h1{font-size:25px;}
+      .intro-card h1{font-size:27px;}
+    }
+
+  
+    /* FINAL ENTRY SCREEN OVERRIDE */
+    #introScreen{
+      position:fixed !important;
+      inset:0 !important;
+      z-index:999999 !important;
+      display:flex !important;
+      opacity:1 !important;
+      visibility:visible !important;
+      pointer-events:auto !important;
+    }
+    #introScreen.hide{
+      display:none !important;
+      opacity:0 !important;
+      visibility:hidden !important;
+      pointer-events:none !important;
+    }
+    #mainDashboard{
+      display:grid !important;
+      visibility:visible !important;
+      opacity:1 !important;
+      pointer-events:auto !important;
+    }
+    #enterDashboardBtn{
+      position:relative !important;
+      z-index:1000000 !important;
+      cursor:pointer !important;
+      pointer-events:auto !important;
+    }
+
+  
+    /* AI ambiguity clarification */
+    .command-clarifier{
+      position:fixed;inset:0;z-index:1000000;display:none;align-items:center;justify-content:center;
+      padding:18px;background:rgba(2,8,18,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    }
+    .command-clarifier.show{display:flex;}
+    .clarifier-card{
+      position:relative;width:min(430px,100%);padding:26px;border-radius:24px;
+      background:linear-gradient(145deg,rgba(19,35,58,.98),rgba(8,17,31,.98));
+      border:1px solid rgba(98,216,255,.20);box-shadow:0 28px 80px rgba(0,0,0,.5);text-align:center;
+    }
+    .clarifier-close{
+      position:absolute;right:12px;top:10px;width:36px;height:36px;border:0;border-radius:50%;
+      background:rgba(255,255,255,.06);color:#fff;font-size:24px;cursor:pointer;
+    }
+    .clarifier-icon{font-size:36px;margin-bottom:8px;}
+    .clarifier-card h3{margin:0 0 8px;font-size:24px;color:#fff;}
+    .clarifier-card p{margin:0 0 18px;color:#9fb0c7;line-height:1.5;font-size:14px;}
+    .clarifier-options{display:grid;gap:10px;}
+    .clarifier-option{
+      width:100%;padding:13px 16px;border:1px solid rgba(98,216,255,.16);border-radius:14px;
+      background:rgba(98,216,255,.07);color:#fff;font-weight:800;cursor:pointer;font-size:14px;
+    }
+    .clarifier-option:hover{background:rgba(98,216,255,.15);border-color:rgba(98,216,255,.35);}
+    .clarifier-cancel{
+      margin-top:14px;border:0;background:transparent;color:#7f90a8;cursor:pointer;padding:8px;
+    }
+
+  .room small{display:block;margin-top:4px;color:#8192aa;font-size:10px;line-height:1.4;}
+  .page-hidden{display:none!important}.navitem.active{background:rgba(35,68,102,.75);color:var(--text);box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+.device-card.clickable{cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.device-card.clickable:hover{transform:translateY(-2px)}
+.device-card.clickable:active{transform:scale(.99)}
+.device-card .device-control{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.device-card .device-state{font-size:.82rem;font-weight:700}
+.device-card .device-state.on{color:#39f59b}
+.device-card .device-state.off{color:#9aa8ba}
+.device-card .device-toggle,.device .device-toggle{
+  width:48px;height:28px;border:0;border-radius:999px;background:#46566a;
+  padding:0;position:relative;flex:0 0 auto;cursor:pointer;
+  transition:background .2s ease,box-shadow .2s ease;
+}
+.device-card .device-toggle span,.device .device-toggle span{
+  position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;
+  top:3px;left:3px;box-shadow:0 1px 4px rgba(0,0,0,.25);
+  transition:left .2s ease;
+}
+.device-card .device-toggle.on,.device .device-toggle.on{background:#3d7ff0;box-shadow:0 0 12px rgba(61,127,240,.22)}
+.device-card .device-toggle.on span,.device .device-toggle.on span{left:23px}
+.device-card .device-toggle:focus-visible,.device .device-toggle:focus-visible{outline:2px solid #7eb6ff;outline-offset:2px}
+
+.energy-warning{
+  border:1px solid rgba(255,170,70,.45)!important;
+  box-shadow:0 0 18px rgba(255,170,70,.12);
+}
+.energy-warning-text{color:#ffb45f;font-weight:800}
+
+.settings-overlay{
+  position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.58);backdrop-filter:blur(8px);z-index:9999;padding:18px;
+}
+.settings-overlay.show{display:flex}
+.settings-panel{
+  width:min(440px,100%);background:var(--panel);color:var(--text);
+  border:1px solid rgba(130,180,255,.22);border-radius:22px;padding:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.45);
+}
+.settings-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.settings-head h2{margin:0}
+.settings-close{
+  width:36px;height:36px;border:0;border-radius:50%;background:rgba(255,255,255,.08);
+  color:var(--text);font-size:24px;cursor:pointer
+}
+.settings-group{margin-top:18px}
+.settings-group h3{margin:0 0 10px;font-size:14px;color:var(--muted)}
+.settings-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settings-option{
+  min-height:64px;border:1px solid rgba(130,180,255,.18);border-radius:14px;
+  background:rgba(255,255,255,.045);color:var(--text);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:9px;font-size:15px;
+}
+.settings-option.active{border-color:#63b9ff;box-shadow:0 0 0 2px rgba(99,185,255,.15);background:rgba(99,185,255,.12)}
+.settings-note{font-size:12px;color:var(--muted);margin:10px 0 0}
+body.light .settings-panel{box-shadow:0 24px 70px rgba(35,60,90,.2)}
+
+/* ===== Proper Bright Theme ===== */
+body.light{
+  background:
+    radial-gradient(circle at 8% 0%,rgba(62,190,234,.16),transparent 32%),
+    radial-gradient(circle at 92% 8%,rgba(101,87,233,.12),transparent 30%),
+    #eef5fc !important;
+  color:#172235 !important;
+}
+body.light .sidebar{
+  background:#ffffff !important;
+  border-right:1px solid #d9e3ee !important;
+  box-shadow:8px 0 30px rgba(31,55,85,.08);
+}
+body.light .logo h2,
+body.light .nav button,
+body.light .top h1,
+body.light .card h2,
+body.light .voice-title,
+body.light .device-name,
+body.light .room strong,
+body.light .settings-panel h2,
+body.light .settings-panel h3,
+body.light .settings-option b,
+body.light .intro-card h1{
+  color:#172235 !important;
+}
+body.light .logo small,
+body.light .top p,
+body.light .muted,
+body.light .room span,
+body.light .device-room,
+body.light .privacy,
+body.light .settings-note,
+body.light .intro-subtitle{
+  color:#5d6c80 !important;
+}
+body.light .nav button{
+  color:#5d6c80 !important;
+}
+body.light .nav button.active,
+body.light .nav button:hover{
+  background:#e8f3fb !important;
+  color:#172235 !important;
+}
+body.light .card{
+  background:linear-gradient(145deg,#ffffff,#f4f8fc) !important;
+  border-color:#d7e2ed !important;
+  box-shadow:0 16px 38px rgba(40,70,100,.10) !important;
+  backdrop-filter:none !important;
+}
+body.light .stat,
+body.light .room,
+body.light .device,
+body.light .chip{
+  background:#f7fafd !important;
+  border-color:#d7e2ed !important;
+  color:#172235 !important;
+}
+body.light .stat .big,
+body.light .command,
+body.light .voice-state{
+  color:#172235 !important;
+}
+body.light .command{
+  background:#edf3f8 !important;
+  border-color:#d7e2ed !important;
+}
+body.light .chip{
+  color:#33445a !important;
+}
+body.light .device.on{
+  background:#f0f9ff !important;
+  border-color:#8bcff0 !important;
+  box-shadow:inset 0 0 25px rgba(62,190,234,.08) !important;
+}
+body.light .side-bottom .privacy{
+  background:#f7fafd !important;
+}
+body.light .iconbtn{
+  background:#ffffff !important;
+  color:#172235 !important;
+  border-color:#d7e2ed !important;
+}
+body.light .settings-overlay{
+  background:rgba(235,243,250,.72) !important;
+}
+body.light .settings-panel{
+  background:#ffffff !important;
+  border-color:#d7e2ed !important;
+  color:#172235 !important;
+}
+body.light .settings-option{
+  background:#f7fafd !important;
+  color:#172235 !important;
+  border-color:#d7e2ed !important;
+}
+body.light .settings-option:hover,
+body.light .settings-option.active{
+  background:#e8f5fc !important;
+  border-color:#79c8ee !important;
+}
+body.light .settings-close{
+  color:#172235 !important;
+}
+body.light .toast{
+  background:#ffffff !important;
+  color:#172235 !important;
+  border-color:#cbd9e7 !important;
+  box-shadow:0 14px 35px rgba(30,60,90,.18) !important;
+}
+body.light .activity-item{
+  border-bottom-color:#d7e2ed !important;
+}
+body.light .activity-item time{
+  color:#6d7d91 !important;
+}
+body.light .intro-screen{
+  background:
+    radial-gradient(circle at 20% 10%,rgba(98,216,255,.18),transparent 35%),
+    radial-gradient(circle at 80% 20%,rgba(139,124,255,.14),transparent 30%),
+    #eef5fc !important;
+}
+body.light .intro-card{
+  background:rgba(255,255,255,.92) !important;
+  border-color:#d7e2ed !important;
+  box-shadow:0 25px 70px rgba(40,70,100,.14) !important;
+}
+
+
+/* ===== Motion -> automatic light automation ===== */
+.motion-automation{
+  margin-top:14px;
+  padding:14px 16px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:rgba(255,255,255,.035);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+}
+.motion-automation-copy{min-width:0}
+.motion-automation-title{font-weight:800;margin-bottom:4px}
+.motion-automation-status{font-size:13px;color:var(--muted)}
+.motion-auto-toggle{
+  width:52px;height:30px;border:0;border-radius:999px;
+  background:#475569;position:relative;cursor:pointer;flex:0 0 auto;
+  transition:.2s ease;
+}
+.motion-auto-toggle::after{
+  content:"";position:absolute;width:22px;height:22px;top:4px;left:4px;
+  border-radius:50%;background:#fff;transition:.2s ease;
+}
+.motion-auto-toggle.on{background:#3b82f6}
+.motion-auto-toggle.on::after{left:26px}
+.motion-automation-note{
+  margin-top:8px;font-size:12px;color:var(--muted);
+}
+
+
+/* Reference-style sensor cards */
+.reference-sensors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
+.reference-sensor{min-height:104px;padding:16px;border-radius:16px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;box-sizing:border-box}
+.reference-sensor .sensor-icon{font-size:25px;line-height:1;margin-bottom:10px}
+.reference-sensor .sensor-name{font-size:12px;letter-spacing:.3px;opacity:.78;margin-bottom:7px}
+.reference-sensor .sensor-value{font-size:18px;font-weight:800}
+@media(max-width:700px){.reference-sensors{grid-template-columns:repeat(3,minmax(145px,1fr));overflow-x:auto}}
+
+</style>
+
+<style id="security-alert-styles">
+  .security-alert {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999;
+    width: min(360px, calc(100vw - 40px));
+    padding: 16px 18px;
+    border-radius: 16px;
+    border: 1px solid rgba(255,90,110,.55);
+    background: rgba(35,12,20,.96);
+    box-shadow: 0 14px 40px rgba(0,0,0,.35);
+    color: #fff;
+    animation: securityIn .25s ease;
+  }
+  .security-alert .security-title {
+    font-weight: 800;
+    font-size: 16px;
+    margin-bottom: 6px;
+  }
+  .security-alert .security-message {
+    font-size: 14px;
+    line-height: 1.45;
+    opacity: .9;
+  }
+  .security-alert .security-time {
+    margin-top: 8px;
+    font-size: 11px;
+    opacity: .65;
+  }
+  @keyframes securityIn {
+    from { opacity: 0; transform: translateY(-10px) translateX(10px); }
+    to { opacity: 1; transform: translateY(0) translateX(0); }
+  }
+  .motion-location-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(255,90,110,.12);
+    border: 1px solid rgba(255,90,110,.25);
+  }
+</style>
+
+</head>
+<body>
+
+  <section class="intro-screen" id="introScreen" aria-label="Project introduction">
+    <div class="intro-card">
+      
+      <div class="intro-icon">🏠</div>
+      <h1>Voice Controlled Smart Home Assistance</h1>
+      <p class="intro-subtitle">
+        Intelligent voice control, sensor-based automation, safety monitoring and energy-aware home assistance —
+        all in one smart dashboard.
+      </p>
+
+      <div class="intro-tags">
+        <span>🎙️ Voice Control</span>
+        <span>📡 IoT Sensors</span>
+        <span>⚡ Energy Saving</span>
+        <span>🛡️ Safety</span>
+      </div>
+
+      <div class="intro-team">
+        <div class="intro-member">
+          <div class="avatar">S</div>
+          <strong>Shreya M C</strong>
+          <small>Team Member</small>
+        </div>
+        <div class="intro-member">
+          <div class="avatar">S</div>
+          <strong>Sanjeetha Dharanya E</strong>
+          <small>Team Member</small>
+        </div>
+        <div class="intro-member">
+          <div class="avatar">S</div>
+          <strong>Sakthi Supriya T</strong>
+          <small>Team Member</small>
+        </div>
+      </div>
+
+      
+      <p class="intro-note">Scan the project QR code → this introduction screen opens first.</p>
+
+      <button id="enterDashboardBtn" class="enter-btn" type="button" onclick="enterDashboard(); return false;">ENTER SMART HOME DASHBOARD →</button>
+    </div>
+  
+
+</section>
+
+  
+  <div class="command-clarifier" id="commandClarifier" aria-hidden="true">
+    <div class="clarifier-card">
+      <button class="clarifier-close" type="button" onclick="closeCommandClarifier()" aria-label="Close">×</button>
+      <div class="clarifier-icon">💡</div>
+      <h3>Which light?</h3>
+      <p id="clarifierText">I found more than one light.</p>
+      <div class="clarifier-options" id="clarifierOptions"></div>
+      <button class="clarifier-cancel" type="button" onclick="closeCommandClarifier()">Cancel</button>
+    </div>
+  </div>
+
+  
+<div class="settings-overlay" id="settingsOverlay" onclick="if(event.target===this) closeSettings()">
+  <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="settings-head">
+      <h2 id="settingsTitle">⚙️ Settings</h2>
+      <button class="settings-close" type="button" onclick="closeSettings()">×</button>
+    </div>
+
+    <div class="settings-group">
+      <h3>Theme</h3>
+      <div class="settings-options">
+        <button type="button" class="settings-option" id="darkThemeOption" onclick="setTheme('dark')">
+          <span>🌙</span><b>Dark</b>
+        </button>
+        <button type="button" class="settings-option" id="lightThemeOption" onclick="setTheme('light')">
+          <span>☀️</span><b>Bright</b>
+        </button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <h3>Language</h3>
+      <div class="settings-options">
+        <button type="button" class="settings-option" id="englishOption" onclick="setLanguage('en')">
+          <span>🇬🇧</span><b>English</b>
+        </button>
+        <button type="button" class="settings-option" id="tamilOption" onclick="setLanguage('ta')">
+          <span>🇮🇳</span><b>தமிழ் (Tamil)</b>
+        </button>
+      </div>
+      <p class="settings-note" id="languageNote">Voice commands will use the selected language.</p>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="mainDashboard">
+<aside class="sidebar">
+  <div class="logo"><div class="logo-icon">🏠</div><div><h2>SMART HOME</h2><small>AI Assistance</small></div></div>
+  <div class="nav">
+    <button class="navitem active" data-page-btn="dashboard" onclick="showPage('dashboard')">⌂ Dashboard</button>
+    <button class="navitem" data-page-btn="devices" onclick="showPage('devices')">◈ Devices</button>
+    <button class="navitem" data-page-btn="sensors" onclick="showPage('sensors')">◉ Sensors</button>
+    <button class="navitem" data-page-btn="automation" onclick="showPage('automation')">✦ Automation</button>
+    <button class="navitem" data-page-btn="project" onclick="showPage('project')">ⓘ Project</button>
+  </div>
+  <div class="side-bottom"><div class="privacy"><span class="dot"></span><b>Local Prototype</b><br><br>Browser controls are active. Hardware can be connected later through ESP32/API.</div></div>
+</aside>
+
+<main class="main" id="dashboard">
+  <div class="top">
+    <div><div class="eyebrow">Intelligent Home Control</div><h1>Voice Controlled Smart Home Assistance</h1><p id="dateText">Your home, intelligently connected.</p></div>
+    <div class="actions"><button class="iconbtn" title="Notifications" onclick="showToast('No new critical notifications')">🔔</button><button class="iconbtn" id="settingsBtn" title="Settings" type="button">⚙️</button></div>
+  </div>
+
+  <div class="grid">
+    <section class="card full" data-page="dashboard">
+      <div class="voice">
+        <button class="orb" id="mic" onclick="startVoice()">🎙️</button>
+        <div>
+          <div class="voice-title">AI Voice Assistant</div>
+          <div class="voice-state" id="voiceState">Ready to listen</div>
+          <div class="command">Last command: <b id="lastCommand">None</b></div>
+          <div class="suggestions">
+            <button class="chip" onclick="runCommand('Turn on the hall light')">Turn on hall light</button>
+            <button class="chip" onclick="runCommand('Turn off all appliances')">Turn off everything</button>
+            <button class="chip" onclick="runCommand('What is the temperature')">Check temperature</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" data-page="dashboard">
+      <div class="cardhead">
+        <h2>Live Home Overview</h2>
+        <span class="muted" id="clock">--:--</span>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <span class="muted">🌡️ Temperature</span>
+          <div class="big" id="overviewTemp">28.4°C</div>
+          <span class="green">Normal</span>
+        </div>
+        <div class="stat">
+          <span class="muted">💡 Devices ON</span>
+          <div class="big" id="onCount">0</div>
+          <span class="yellow">Active</span>
+        </div>
+        <div class="stat">
+          <span class="muted">⚡ Energy Saved</span>
+          <div class="big" id="energySaved">18%</div>
+          <span class="green">Excellent</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card full" id="rooms" data-page="dashboard">
+      <div class="cardhead">
+        <h2>🏠 Rooms</h2>
+        <span class="muted">Tap a room to view its devices</span>
+      </div>
+    <div class="rooms">
+        <div class="room selected" data-room="All" onclick="filterRoom('All',this)">
+          <div class="room-icon">🏠</div>
+          <strong>All Rooms</strong>
+          <span>4 devices</span>
+          <small>4 lights</small>
+        </div>
+        <div class="room" data-room="Hall" onclick="filterRoom('Hall',this)">
+          <div class="room-icon">🛋️</div>
+          <strong>Hall</strong>
+          <span>2 devices</span>
+          <small>2 lights</small>
+        </div>
+        <div class="room" data-room="Bedroom" onclick="filterRoom('Bedroom',this)">
+          <div class="room-icon">🛏️</div>
+          <strong>Bedroom</strong>
+          <span>2 devices</span>
+          <small>2 lights</small>
+        </div>
+      </div>
+  </section>
+
+    <section class="card full" id="devices" data-page="devices">
+      <div class="cardhead"><h2>⚡ Smart Devices</h2><span class="muted" id="filterLabel">Showing all rooms</span></div>
+      <div class="devices" id="deviceGrid">
+        <div class="device on" data-room="Hall" data-name="Hall Light 1">
+          <div class="device-icon">💡</div><div class="device-name">Hall Light 1</div>
+          <button type="button" class="device-toggle on" onclick="toggleDevice(this)" aria-label="Toggle device" aria-pressed="true"><span></span></button>
+        </div>
+        <div class="device on" data-room="Hall" data-name="Hall Light 2">
+          <div class="device-icon">💡</div><div class="device-name">Hall Light 2</div>
+          <button type="button" class="device-toggle on" onclick="toggleDevice(this)" aria-label="Toggle device" aria-pressed="true"><span></span></button>
+        </div>
+        <div class="device on" data-room="Bedroom" data-name="Bedroom Light 1">
+          <div class="device-icon">💡</div><div class="device-name">Bedroom Light 1</div>
+          <button type="button" class="device-toggle on" onclick="toggleDevice(this)" aria-label="Toggle device" aria-pressed="true"><span></span></button>
+        </div>
+        <div class="device" data-room="Bedroom" data-name="Bedroom Light 2">
+          <div class="device-icon">💡</div><div class="device-name">Bedroom Light 2</div>
+          <button type="button" class="device-toggle" onclick="toggleDevice(this)" aria-label="Toggle device" aria-pressed="false"><span></span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card full" id="sensors" data-page="sensors">
+      <div class="cardhead">
+        <h2>🕯️ Live Sensor Intelligence</h2>
+        <button class="chip" onclick="simulateSensors()">↻ Refresh sensors</button>
+      </div>
+      <div class="sensor-grid reference-sensors">
+        <div class="sensor reference-sensor">
+          <div class="sensor-icon">💡</div>
+          <div class="sensor-name">LDR LIGHT</div>
+          <div class="sensor-value" id="ldr">Dark</div>
+        </div>
+        <div class="sensor reference-sensor">
+          <div class="sensor-icon">👤</div>
+          <div class="sensor-name">MOTION</div>
+          <div class="sensor-value" id="motion">Clear</div>
+        </div>
+        <div class="sensor reference-sensor">
+          <div class="sensor-icon">🌡️</div>
+          <div class="sensor-name">TEMPERATURE</div>
+          <div class="sensor-value" id="temp">25.2°C</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card full" id="automation" data-page="automation">
+      <div class="cardhead"><h2>🧠 Smart Home Intelligence</h2><span class="muted">Context-aware suggestions</span></div>
+      <div class="insights" id="insights">
+        <div class="insight"><span>🌙</span><b>Lighting Insight</b><p>Low light + motion detected. Hall Light is recommended ON.</p></div>
+        <div class="insight"><span>⚡</span><b>Energy Insight</b><p>The four smart lights can be controlled individually. Turning off unused lights can reduce consumption.</p></div>
+        <div class="insight"><span>🛡️</span><b>Safety Insight</b><p>All safety sensors are currently within normal limits.</p></div>
+      </div>
+
+      <div class="motion-automation" id="motionAutomation">
+      <div class="motion-location" id="motionLocation" style="margin-top:12px;padding:12px 14px;border:1px solid rgba(80,190,255,.22);border-radius:12px;background:rgba(8,24,42,.55);font-size:14px;">
+        <span>📍</span>
+        <strong id="motionLocationLabel">Motion location:</strong>
+        <span id="motionLocationValue">Waiting for motion...</span>
+      </div>
+
+  <div class="motion-automation-copy">
+    <div class="motion-automation-title" id="motionAutomationTitle">👤 Motion Light Automation</div>
+    <div class="motion-automation-status" id="motionAutomationStatus">Automatic room lighting is enabled.</div>
+    <div class="motion-automation-note" id="motionAutomationNote">When it is dark and motion is detected, the room light turns ON. After motion stops, it turns OFF.</div>
+  </div>
+  <button type="button" class="motion-auto-toggle on" id="motionAutoToggle" aria-pressed="true" onclick="window.toggleMotionAutomation()">ON</button>
+</div>
+    </section>
+
+    <div class="bottomgrid full">
+      <section data-page="sensors" class="card">
+        <div class="cardhead"><h2>⚡ Energy Monitor</h2><span class="muted">Today</span></div>
+        <div class="energy-wrap"><div><div class="energy-number" id="energy">4.2 kWh</div><span class="muted">estimated consumption</span></div><div style="flex:1"><div class="bar"><span id="energyBar"></span></div><div class="energy-meta"><span>Usage 63%</span><span class="green">Saving 18%</span></div></div></div>
+        <div class="chart" id="chart"></div>
+      </section>
+
+      <section class="card" data-page="sensors">
+        <div class="cardhead"><h2>🚨 Safety Center</h2><span class="green" id="safetyText">● SAFE</span></div>
+        <div class="safety"><div class="shield">🛡️</div><div><h3>Home is protected</h3><p class="muted">Smoke, gas and door sensors are normal.</p></div><button class="danger" onclick="emergencyShutdown()">Emergency OFF</button></div>
+      </section>
+
+      <section class="card" data-page="automation">
+        <div class="cardhead"><h2>📋 Activity Timeline</h2><span class="muted">Live</span></div>
+        <div class="activity" id="activity"></div>
+      </section>
+
+      <section class="card" data-page="project">
+        <div class="cardhead"><h2>👥 Project Team</h2></div>
+        <div class="team"><div class="member">Shreya M C</div><div class="member">Sanjeetha Dharanya E</div><div class="member">Sakthi Supriya T</div></div>
+        <p class="muted" style="margin-top:15px;line-height:1.6">Voice Controlled Smart Home Assistance combines voice interaction, sensor intelligence, automation, safety monitoring and energy awareness in one interface.</p>
+      </section>
+    </div>
+  </div>
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="modalbox"><button class="close" onclick="closeAbout()">×</button><h2>🏠 About the Project</h2><p class="muted" style="line-height:1.7">This dashboard is a fully interactive browser prototype. Voice recognition, device controls, simulated sensors, automation insights, emergency shutdown, activity history, theme control and room filtering work locally in the browser. For real appliances and sensors, connect the interface to an ESP32/Arduino backend or IoT platform.</p><br><h3>Team Members</h3><p style="margin-top:10px">Shreya M C<br>Sanjeetha Dharanya E<br>Sakthi Supriya T</p></div></div>
+
+
+<script>
+function showPage(page) {
+  var items = document.querySelectorAll('[data-page]');
+  items.forEach(function (item) {
+    item.classList.toggle('page-hidden', item.getAttribute('data-page') !== page);
+  });
+
+  var buttons = document.querySelectorAll('[data-page-btn]');
+  buttons.forEach(function (button) {
+    button.classList.toggle('active', button.getAttribute('data-page-btn') === page);
+  });
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  showPage('dashboard');
+});
+</script>
+
+<script>
+function toggleDeviceCard(deviceId) {
+  if (!deviceId) return;
+  var device = document.querySelector('[data-device="' + deviceId + '"]');
+  if (!device) return;
+
+  // Prefer the existing application state/function.
+  if (typeof toggleDevice === 'function') {
+    try {
+      toggleDevice(deviceId);
+    } catch (e) {
+      // Fall back to local visual state below.
+    }
+  }
+
+  var isOn = false;
+  var stateEl = document.querySelector('[data-state-for="' + deviceId + '"]');
+  var toggleEl = document.querySelector('[data-toggle-for="' + deviceId + '"]');
+
+  if (stateEl && stateEl.classList.contains('on')) {
+    isOn = true;
+  } else if (toggleEl && toggleEl.classList.contains('on')) {
+    isOn = true;
+  } else {
+    // If the existing app has a state object, use it.
+    try {
+      if (window.deviceStates && Object.prototype.hasOwnProperty.call(window.deviceStates, deviceId)) {
+        isOn = !!window.deviceStates[deviceId];
+      }
+    } catch (e) {}
+  }
+
+  // If toggleDevice() updated the DOM, use that state; otherwise toggle locally.
+  if (stateEl && toggleEl) {
+    var nextOn = !isOn;
+    stateEl.textContent = nextOn ? 'ON' : 'OFF';
+    stateEl.classList.toggle('on', nextOn);
+    stateEl.classList.toggle('off', !nextOn);
+    toggleEl.textContent = nextOn ? 'ON' : 'OFF';
+    toggleEl.classList.toggle('on', nextOn);
+    toggleEl.setAttribute('aria-pressed', String(nextOn));
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.device-card.clickable').forEach(function(card) {
+    card.addEventListener('click', function(e) {
+      if (e.target.closest('.device-toggle')) return;
+      var id = card.getAttribute('data-device');
+      toggleDeviceCard(id);
+    });
+  });
+
+  document.querySelectorAll('.device-toggle').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleDeviceCard(btn.getAttribute('data-toggle-for'));
+    });
+  });
+});
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  function $(selector) {
+    return document.querySelector(selector);
+  }
+
+  function $$(selector) {
+    return document.querySelectorAll(selector);
+  }
+
+
+  function localizeRuntimeMessage(msg) {
+    if (currentLanguage !== "ta") return msg;
+    var m = {
+      "Welcome to your Smart Home Dashboard":"உங்கள் ஸ்மார்ட் ஹோம் டாஷ்போர்டிற்கு வரவேற்கிறோம்",
+      "Please say a device command.":"சாதனத்திற்கான குரல் கட்டளையை கூறுங்கள்.",
+      "Emergency OFF: ":"அவசர நிறுத்தம்: ",
+      " device(s) switched off":" சாதனங்கள் அணைக்கப்பட்டன",
+      "All appliances were already OFF":"அனைத்து சாதனங்களும் ஏற்கனவே அணைக்கப்பட்டுள்ளன",
+      " turned ON":" இயக்கப்பட்டது",
+      " turned OFF":" அணைக்கப்பட்டது",
+      "Could not start voice recognition.":"குரல் அறிதலை தொடங்க முடியவில்லை.",
+      "Microphone permission is blocked. Allow microphone access and try again.":"மைக்ரோஃபோன் அனுமதி தடுக்கப்பட்டுள்ளது. மைக்ரோஃபோன் அணுகலை அனுமதித்து மீண்டும் முயற்சிக்கவும்.",
+      "No microphone was found. Check your microphone and try again.":"மைக்ரோஃபோன் கிடைக்கவில்லை. மைக்ரோஃபோனை சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
+      "I didn't hear you. Tap the microphone and speak clearly.":"உங்கள் குரல் கேட்கவில்லை. மைக்ரோஃபோனை அழுத்தி தெளிவாக பேசுங்கள்.",
+      "Voice service needs an internet connection in this browser.":"இந்த உலாவியில் குரல் சேவைக்கு இணைய இணைப்பு தேவை.",
+      "Please try the voice command again.":"குரல் கட்டளையை மீண்டும் முயற்சிக்கவும்."
+    };
+    if (m[msg]) return m[msg];
+    var out=msg;
+    Object.keys(m).forEach(function(k){ if(out.indexOf(k)!==-1) out=out.replace(k,m[k]); });
+    return out;
+  }
+
+  window.showToast = function (msg) {
+    var t = $("#toast");
+    if (!t) return;
+    t.textContent = localizeRuntimeMessage(msg);
+    t.classList.add("show");
+    clearTimeout(window.smartToastTimer);
+    window.smartToastTimer = setTimeout(function () {
+      t.classList.remove("show");
+    }, 2600);
+  };
+
+  window.addActivity = function (msg) {
+    var a = $("#activity");
+    if (!a) return;
+    var d = document.createElement("div");
+    d.className = "activity-item";
+    d.innerHTML =
+      "<span>" + localizeRuntimeMessage(msg) + "</span>" +
+      "<time>" + new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+      }) + "</time>";
+    a.insertBefore(d, a.firstChild);
+
+    while (a.children.length > 12) {
+      a.removeChild(a.lastChild);
+    }
+
+    try {
+      localStorage.setItem("smartActivities", a.innerHTML);
+    } catch (e) {}
+  };
+
+  function loadActivity() {
+    var a = $("#activity");
+    if (!a) return;
+
+    try {
+      var saved = localStorage.getItem("smartActivities");
+      if (saved) {
+        a.innerHTML = saved;
+        return;
+      }
+    } catch (e) {}
+
+    [
+      "🟢 System started",
+      "🌙 LDR detected low light",
+      "👤 Motion detected",
+      "💡 Hall Light ON"
+    ].forEach(window.addActivity);
+  }
+
+  window.updateCount = function () {
+    var count = $("#onCount");
+    if (count) count.textContent = $$(".device.on").length;
+  };
+
+  window.saveState = function () {
+    var state = {};
+    $$(".device").forEach(function (d) {
+      state[d.dataset.name] = d.classList.contains("on");
+    });
+    try {
+      localStorage.setItem("deviceState", JSON.stringify(state));
+    } catch (e) {}
+  };
+
+  window.loadState = function () {
+    try {
+      var state = JSON.parse(localStorage.getItem("deviceState") || "{}");
+      $$(".device").forEach(function (d) {
+        if (Object.prototype.hasOwnProperty.call(state, d.dataset.name)) {
+          var savedOn = !!state[d.dataset.name];
+          d.classList.toggle("on", savedOn);
+          var savedBtn = d.querySelector(".device-toggle");
+          if (savedBtn) {
+            savedBtn.classList.toggle("on", savedOn);
+            savedBtn.setAttribute("aria-pressed", String(savedOn));
+          }
+        }
+      });
+    } catch (e) {}
+    window.updateCount();
+  };
+
+  // Make sure every device card immediately reflects its real ON/OFF state.
+  function refreshDeviceStateTheme() {
+    $$(".device").forEach(function (device) {
+      var isOn = device.classList.contains("on");
+      device.classList.toggle("on", isOn);
+      var btn = device.querySelector(".device-toggle");
+      if (btn) {
+        btn.classList.toggle("on", isOn);
+        btn.setAttribute("aria-pressed", String(isOn));
+      }
+    });
+  }
+
+  window.refreshDeviceStateTheme = refreshDeviceStateTheme;
+
+  window.toggleDevice = function (btn) {
+    var device = btn.closest(".device");
+    if (!device) return;
+
+    var on = device.classList.toggle("on");
+    var name = device.dataset.name || "Device";
+
+    btn.classList.toggle("on", on);
+    btn.setAttribute("aria-pressed", String(on));
+
+    window.addActivity((on ? "🟢 " : "⚪ ") + name + " → " + (on ? "ON" : "OFF"));
+    window.showToast(name + (on ? " turned ON" : " turned OFF"));
+    window.updateCount();
+    window.saveState();
+    checkHighEnergyConsumption();
+  };
+
+  window.scrollToId = function (id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  window.filterRoom = function (room, el) {
+    $$(".room").forEach(function (x) {
+      x.classList.remove("selected");
+    });
+
+    if (el) el.classList.add("selected");
+
+    $$(".device").forEach(function (d) {
+      d.style.display =
+        room === "All" || d.dataset.room === room ? "block" : "none";
+    });
+
+    var label = $("#filterLabel");
+    if (label) {
+      label.textContent =
+        room === "All" ? "Showing all rooms" : "Showing " + room;
+    }
+
+    window.scrollToId("devices");
+  };
+
+  window.emergencyShutdown = function () {
+    var active = $$(".device.on");
+    var n = active.length;
+
+    active.forEach(function (d) {
+      d.classList.remove("on");
+    });
+
+    window.updateCount();
+    window.saveState();
+    window.addActivity("🚨 Emergency mode → all active appliances OFF");
+    window.showToast(
+      n
+        ? "Emergency OFF: " + n + " device(s) switched off"
+        : "All appliances were already OFF"
+    );
+  };
+
+  window.simulateSensors = function () {
+    var dark = Math.random() > 0.35;
+    var move = Math.random() > 0.25;
+    var temp = (25 + Math.random() * 6).toFixed(1);
+
+    if ($("#ldr")) $("#ldr").textContent = dark ? "Dark" : "Bright";
+    if ($("#motion")) $("#motion").textContent = move ? "Detected" : "Clear";
+    if ($("#temp")) $("#temp").textContent = temp + "°C";
+    if ($("#overviewTemp")) $("#overviewTemp").textContent = temp + "°C";
+
+    window.addActivity(
+      "📡 Sensors refreshed → LDR " +
+      (dark ? "Dark" : "Bright") +
+      ", Motion " +
+      (move ? "Detected" : "Clear")
+    );
+
+    if (dark && move) {
+      var light = Array.prototype.find.call(
+        $$(".device"),
+        function (x) {
+          return x.dataset.name === "Hall Light";
+        }
+      );
+
+      if (light && !light.classList.contains("on")) {
+        light.classList.add("on");
+        window.updateCount();
+        window.saveState();
+        window.addActivity("🤖 Smart automation → Hall Light ON");
+        window.showToast("Smart automation activated the living room light");
+      }
+    }
+  };
+
+
+  function localizedDeviceName(name) {
+    if (currentLanguage !== "ta") return name;
+    var map = {
+      "Hall Light 1":"ஹால் விளக்கு 1",
+      "Hall Light 2":"ஹால் விளக்கு 2",
+      "Hall Fan":"ஹால் விசிறி",
+      "Bedroom Light 1":"படுக்கையறை விளக்கு 1",
+      "Bedroom Light 2":"படுக்கையறை விளக்கு 2",
+      "Bedroom Fan":"படுக்கையறை விசிறி",
+      "Kitchen Light":"சமையலறை விளக்கு",
+      "Kitchen Fan":"சமையலறை விசிறி",
+      "Kitchen Exhaust Fan":"சமையலறை எக்ஸாஸ்ட் விசிறி"
+    };
+    return map[name] || name;
+  }
+
+  window.openCommandClarifier = function (devices, turnOn) {
+    var modal = $("#commandClarifier");
+    var options = $("#clarifierOptions");
+    var text = $("#clarifierText");
+    var title = modal ? modal.querySelector("h3") : null;
+    var cancel = modal ? modal.querySelector(".clarifier-cancel") : null;
+    if (!modal || !options) return;
+
+    options.innerHTML = "";
+
+    if (title) {
+      title.textContent = currentLanguage === "ta" ? "எந்த விளக்கு?" : "Which light?";
+    }
+
+    if (text) {
+      text.setAttribute("data-turn-on", turnOn ? "true" : "false");
+      text.textContent = currentLanguage === "ta"
+        ? (turnOn
+            ? "ஒன்றுக்கும் மேற்பட்ட விளக்குகள் உள்ளன. எந்த விளக்கை இயக்க வேண்டும்?"
+            : "ஒன்றுக்கும் மேற்பட்ட விளக்குகள் உள்ளன. எந்த விளக்கை அணைக்க வேண்டும்?")
+        : (turnOn
+            ? "I found more than one light. Which one should I turn on?"
+            : "I found more than one light. Which one should I turn off?");
+    }
+
+    if (cancel) {
+      cancel.textContent = currentLanguage === "ta" ? "ரத்து செய்" : "Cancel";
+    }
+
+    devices.forEach(function (device) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "clarifier-option";
+      button.setAttribute("data-device-name", device.dataset.name || "Light");
+      button.textContent = "💡 " + localizedDeviceName(device.dataset.name || "Light");
+      button.onclick = function () {
+        setDeviceState(device, turnOn, "🧠 Voice");
+        window.closeCommandClarifier();
+      };
+      options.appendChild(button);
+    });
+
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
+  };
+
+  window.closeCommandClarifier = function () {
+    var modal = $("#commandClarifier");
+    if (!modal) return;
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+  };
+
+  function normalizeCommandText(text) {
+    return (text || "")
+      .toLowerCase()
+      .replace(/[.,!?]/g, " ")
+      .replace(/\bone\b/g, "1")
+      .replace(/\btwo\b/g, "2")
+      .replace(/\bthree\b/g, "3")
+      .replace(/\bfour\b/g, "4")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function setDeviceState(device, isOn, source) {
+    if (!device) return;
+
+    var on = !!isOn;
+    device.classList.toggle("on", on);
+
+    // Keep the visible switch synchronized with the real device state.
+    var btn = device.querySelector(".device-toggle");
+    if (btn) {
+      btn.classList.toggle("on", on);
+      btn.setAttribute("aria-pressed", String(on));
+    }
+
+    window.updateCount();
+    window.saveState();
+
+    var name = device.dataset.name || "Device";
+    var localizedName = typeof localizedDeviceName === "function"
+      ? localizedDeviceName(name)
+      : name;
+
+    // Voice output/status must match the selected language and the command result.
+    var resultEn = localizedName + (on ? " turned ON" : " turned OFF");
+    var resultTa = localizedName + (on ? " இயக்கப்பட்டது" : " அணைக்கப்பட்டது");
+
+    var voiceState = $("#voiceState");
+    if (voiceState) voiceState.textContent = currentLanguage === "ta" ? resultTa : resultEn;
+
+    window.addActivity(
+      (source || "🎤 Voice") + " → " + name + " " + (on ? "ON" : "OFF")
+    );
+
+    window.showToast(currentLanguage === "ta" ? resultTa : resultEn);
+  }
+
+  function commandUiText(en, ta) {
+    return currentLanguage === "ta" ? ta : en;
+  }
+
+  window.processCommand = function (text) {
+    var raw = String(text || "").trim();
+    if (!raw) {
+      window.showToast(commandUiText("Please say a device command.", "சாதனக் கட்டளையை கூறுங்கள்."));
+      return;
+    }
+
+    /*
+      IMPORTANT:
+      Tamil commands are handled directly before any English normalization.
+      This prevents Tamil suffixes such as "விளக்கு 1-ஐ" from being lost.
+      The actual device state is changed here, not just the displayed command.
+    */
+    if (currentLanguage === "ta" || /[஀-௿]/.test(raw)) {
+      var taRaw = raw.toLowerCase().replace(/\s+/g, " ").trim();
+
+      var tamilOff = /(அணை|அணைக்க|அணைத்த|ஆஃப்|ஆப்|நிறுத்த|மூடு)/.test(taRaw);
+      var tamilOn = /(இயக்கு|இயக்க|ஆன்|போடு|போட|திற)/.test(taRaw);
+
+      var tamilRoom = "";
+      if (/ஹால்/.test(taRaw)) tamilRoom = "Hall";
+      else if (/படுக்கையறை|பெட்ரூம்/.test(taRaw)) tamilRoom = "Bedroom";
+      else if (/சமையலறை|கிச்சன்/.test(taRaw)) tamilRoom = "Kitchen";
+
+      var tamilKind = "";
+      if (/எக்ஸாஸ்ட்/.test(taRaw)) tamilKind = "exhaust";
+      else if (/விளக்கு|லைட்/.test(taRaw)) tamilKind = "light";
+      else if (/விசிறி|ஃபேன்|பேன்/.test(taRaw)) tamilKind = "fan";
+
+      var tamilNumber = "";
+      if (/ஒன்று|ஒன்னு|முதல்/.test(taRaw)) tamilNumber = "1";
+      else if (/இரண்டு|ரெண்டு|இரண்டாவது/.test(taRaw)) tamilNumber = "2";
+      else if (/மூன்று|மூணு|மூன்றாவது/.test(taRaw)) tamilNumber = "3";
+      else if (/நான்கு|நாலு|நான்காவது/.test(taRaw)) tamilNumber = "4";
+      else {
+        var tn = taRaw.match(/\b([1-9])\b/);
+        if (tn) tamilNumber = tn[1];
+      }
+
+      if ((tamilOn || tamilOff) && (tamilRoom || tamilKind)) {
+        var tamilDevices = Array.prototype.slice.call($$(".device"));
+        var tamilMatches = tamilDevices.filter(function(d) {
+          var n = String(d.dataset.name || "").toLowerCase();
+          var roomOK = !tamilRoom || n.indexOf(tamilRoom.toLowerCase()) !== -1;
+          var kindOK = !tamilKind ||
+            (tamilKind === "light" && n.indexOf("light") !== -1) ||
+            (tamilKind === "fan" && n.indexOf("fan") !== -1) ||
+            (tamilKind === "exhaust" && n.indexOf("exhaust") !== -1);
+          var numOK = !tamilNumber || n.indexOf(" " + tamilNumber) !== -1;
+          return roomOK && kindOK && numOK;
+        });
+
+        // If the command names one exact device, change that device immediately.
+        if (tamilMatches.length === 1) {
+          var tamilState = tamilOn && !tamilOff;
+          setDeviceState(tamilMatches[0], tamilState, "🎤 Voice");
+          if ($("#lastCommand")) $("#lastCommand").textContent = raw;
+          return;
+        }
+
+        // "அனைத்து விளக்குகளையும் இயக்கு/அணை"
+        if (/அனைத்து|எல்லா|எல்லாவற்றையும்/.test(taRaw) && tamilKind === "light") {
+          var allTamilLights = tamilDevices.filter(function(d) {
+            return String(d.dataset.name || "").toLowerCase().indexOf("light") !== -1;
+          });
+          var allState = tamilOn && !tamilOff;
+          allTamilLights.forEach(function(d) {
+            setDeviceState(d, allState, "🎤 Voice");
+          });
+          window.showToast(
+            allState ? "அனைத்து விளக்குகளும் இயக்கப்பட்டன" : "அனைத்து விளக்குகளும் அணைக்கப்பட்டன"
+          );
+          if ($("#lastCommand")) $("#lastCommand").textContent = raw;
+          return;
+        }
+
+        if (tamilMatches.length > 1) {
+          window.showToast(
+            "பல சாதனங்கள் பொருந்துகின்றன. அறை அல்லது சாதன எண்ணை குறிப்பிடுங்கள்."
+          );
+          return;
+        }
+      }
+    }
+
+    var original = raw;
+    var lower = raw.toLowerCase();
+
+    // Tamil voice commands -> canonical English device command.
+    if (currentLanguage === "ta" || /[஀-௿]/.test(raw)) {
+      var ta = raw.toLowerCase();
+
+      var wantsOnTa = /(ஆன்|ஆன் செய்|இயக்கு|இயக்கவும்|இயக்க|போடு|போடவும்|திற|திறக்கவும்)/.test(ta);
+      var wantsOffTa = /(ஆஃப்|ஆப்|அணை|அணைக்கவும்|அணைத்துவிடு|நிறுத்து|நிறுத்தவும்|மூடு|மூடவும்)/.test(ta);
+
+      // Normalize common spoken Tamil forms, including case suffixes such as
+      // "விளக்கை", "விளக்குகளை", "விசிறியை", "விசிறியை", etc.
+      var deviceTa = ta
+        .replace(/தயவுசெய்து|தயவு செய்து/g, " ")
+        .replace(/ஹாலில்|ஹாலின்|ஹாலை|ஹால்/g, " hall ")
+        .replace(/படுக்கையறையில்|படுக்கையறையின்|படுக்கையறையை|படுக்கையறை/g, " bedroom ")
+        .replace(/பெட்ரூமில்|பெட்ரூமின்|பெட்ரூமை|பெட்ரூம்/g, " bedroom ")
+        .replace(/சமையலறையில்|சமையலறையின்|சமையலறையை|சமையலறை/g, " kitchen ")
+        .replace(/கிச்சனில்|கிச்சனின்|கிச்சனை|கிச்சன்/g, " kitchen ")
+        .replace(/விளக்குகளை|விளக்கை|விளக்கின்|விளக்கு/g, " light ")
+        .replace(/லைட்களை|லைட்டை|லைட்ஸ்|லைட்/g, " light ")
+        .replace(/விசிறியை|விசிறிகள்|விசிறி/g, " fan ")
+        .replace(/ஃபேனை|ஃபேன்கள்|ஃபேன்/g, " fan ")
+        .replace(/பேனை|பேன்கள்|பேன்/g, " fan ")
+        .replace(/எக்ஸாஸ்ட்\s*விசிறியை|எக்ஸாஸ்ட்\s*விசிறி/g, " exhaust fan ")
+        .replace(/ஒன்று|ஒன்னு|முதல்/g, " 1 ")
+        .replace(/இரண்டு|ரெண்டு|இரண்டாவது/g, " 2 ")
+        .replace(/மூன்று|மூணு|மூன்றாவது/g, " 3 ")
+        .replace(/நான்கு|நாலு|நான்காவது/g, " 4 ")
+        .replace(/அனைத்து|எல்லா|எல்லாவற்றையும்/g, " all ")
+        .replace(/ஆன்|ஆஃப்|ஆப்|இயக்கு|இயக்கவும்|இயக்க|போடு|போடவும்|அணை|அணைக்கவும்|அணைத்துவிடு|நிறுத்து|நிறுத்தவும்|மூடு|மூடவும்|செய்|செய்யவும்/g, " ")
+        .replace(/[^\u0000-\u007F]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (wantsOnTa || wantsOffTa) {
+        raw = (wantsOnTa ? "turn on " : "turn off ") + deviceTa;
+      } else if (/வெப்பநிலை|டெம்பரேச்சர்|சென்சார்/.test(ta)) {
+        raw = "check temperature";
+      }
+    }
+
+    var command = normalizeCommandText(raw);
+    if (!command) {
+      window.showToast(commandUiText("I could not understand the command.", "கட்டளை புரியவில்லை."));
+      return;
+    }
+
+    var wantsOn =
+      /\bturn\s+on\b/.test(command) ||
+      /\bswitch\s+on\b/.test(command) ||
+      /\bon\b/.test(command);
+
+    var wantsOff =
+      /\bturn\s+off\b/.test(command) ||
+      /\bswitch\s+off\b/.test(command) ||
+      /\boff\b/.test(command);
+
+    if (wantsOn || wantsOff) {
+      var target = command
+        .replace(/\bturn\s+on\b|\bturn\s+off\b|\bswitch\s+on\b|\bswitch\s+off\b/g, "")
+        .replace(/\bon\b|\boff\b/g, "")
+        .replace(/\bthe\b/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      var devices = Array.prototype.slice.call($$(".device"));
+
+      // All lights.
+      if (/\ball\s+lights?\b|\bevery\s+light\b/.test(command)) {
+        var allLights = devices.filter(function(d){
+          return normalizeCommandText(d.dataset.name || "").indexOf("light") !== -1;
+        });
+        allLights.forEach(function(d){ setDeviceState(d, wantsOn, "🎤 Voice"); });
+        var allLightsResult = wantsOn
+          ? commandUiText("All lights turned ON", "அனைத்து விளக்குகளும் இயக்கப்பட்டன")
+          : commandUiText("All lights turned OFF", "அனைத்து விளக்குகளும் அணைக்கப்பட்டன");
+        var allLightsState = $("#voiceState");
+        if (allLightsState) allLightsState.textContent = allLightsResult;
+        window.showToast(allLightsResult);
+        return;
+      }
+
+      // Exact name first.
+      var exact = null;
+      for (var i=0; i<devices.length; i++) {
+        var dn = normalizeCommandText(devices[i].dataset.name || "");
+        if (target === dn) { exact = devices[i]; break; }
+      }
+
+      // Handle natural phrases like "light 1 in hall".
+      if (!exact) {
+        var room = target.match(/\b(hall|bedroom|kitchen|living\s+room)\b/);
+        var roomName = room ? room[1].replace(/\s+/g," ") : "";
+        var number = (target.match(/\b([1-9])\b/) || [,""])[1];
+        var kind = /\blight\b/.test(target) ? "light" :
+                   /\bexhaust\b/.test(target) ? "exhaust" :
+                   /\bfan\b/.test(target) ? "fan" : "";
+
+        if (roomName && kind) {
+          var candidates = devices.filter(function(d){
+            var name = normalizeCommandText(d.dataset.name || "");
+            return name.indexOf(roomName) !== -1 && name.indexOf(kind) !== -1;
+          });
+          if (number) {
+            candidates = candidates.filter(function(d){
+              return normalizeCommandText(d.dataset.name || "").indexOf(" " + number) !== -1;
+            });
+          }
+          if (candidates.length === 1) exact = candidates[0];
+        }
+      }
+
+      if (exact) {
+        setDeviceState(exact, wantsOn, "🎤 Voice");
+        return;
+      }
+
+      // "turn on/off light" -> ask which light.
+      if (target === "light" || target === "lights") {
+        var lightDevices = devices.filter(function(d){
+          return normalizeCommandText(d.dataset.name || "").indexOf("light") !== -1;
+        });
+        window.openCommandClarifier(lightDevices, wantsOn);
+        return;
+      }
+
+      // General partial match.
+      var matches = devices.filter(function(d){
+        var name = normalizeCommandText(d.dataset.name || "");
+        return target === name || (target.length > 2 && name.indexOf(target) !== -1);
+      });
+
+      if (matches.length === 1) {
+        setDeviceState(matches[0], wantsOn, "🎤 Voice");
+        return;
+      }
+
+      if (matches.length > 1) {
+        var multipleText = commandUiText(
+          "Please specify the room or device number.",
+          "அறை அல்லது சாதன எண்ணை குறிப்பிடுங்கள்."
+        );
+        var multipleState = $("#voiceState");
+        if (multipleState) multipleState.textContent = multipleText;
+        window.showToast(multipleText);
+        return;
+      }
+    }
+
+    if (/\bsensor\b|\brefresh\b|\btemperature\b/.test(command)) {
+      window.simulateSensors();
+      var tempValue = $("#temp") ? $("#temp").textContent : "";
+      var tempResult = currentLanguage === "ta"
+        ? "வீட்டு வெப்பநிலை " + tempValue
+        : "Home temperature is " + tempValue;
+      var tempState = $("#voiceState");
+      if (tempState) tempState.textContent = tempResult;
+      window.showToast(tempResult);
+      return;
+    }
+
+    window.showToast(commandUiText(
+      "Try: “turn off hall light 1”",
+      "உதாரணம்: “ஹால் விளக்கு 1-ஐ அணை”"
+    ));
+  };
+
+  window.runCommand = function (command) {
+    if ($("#lastCommand")) $("#lastCommand").textContent = command;
+    window.processCommand(command);
+  };
+
+  var voiceRecognition = null;
+  var voiceListening = false;
+
+  function voiceText(en, ta) {
+    return currentLanguage === "ta" ? ta : en;
+  }
+
+  function setupVoiceRecognition() {
+    if (voiceRecognition) return voiceRecognition;
+
+    var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return null;
+
+    try {
+      voiceRecognition = new SpeechRecognition();
+      voiceRecognition.interimResults = false;
+      voiceRecognition.continuous = false;
+      voiceRecognition.maxAlternatives = 3;
+
+      voiceRecognition.onstart = function () {
+        voiceListening = true;
+        var mic = $("#mic"), state = $("#voiceState");
+        if (mic) mic.classList.add("listening");
+        if (state) state.textContent = voiceText("Listening… speak now", "கேட்கிறது… இப்போது பேசுங்கள்");
+      };
+
+      voiceRecognition.onaudiostart = function () {
+        var state = $("#voiceState");
+        if (state) state.textContent = voiceText("Hearing you…", "உங்கள் குரல் கேட்கிறது…");
+      };
+
+      voiceRecognition.onresult = function (event) {
+        var result = event.results[0] && event.results[0][0];
+        var command = result ? String(result.transcript || "").trim() : "";
+
+        if (!command) {
+          var state = $("#voiceState");
+          if (state) state.textContent = voiceText("I didn't hear a command", "கட்டளை கேட்கவில்லை");
+          window.showToast(voiceText(
+            "Please say a command.",
+            "ஒரு கட்டளையை சொல்லுங்கள்."
+          ));
+          return;
+        }
+
+        if ($("#lastCommand")) $("#lastCommand").textContent = command;
+
+        // Do not show a generic "Command understood" message.
+        // processCommand() now updates the output with the actual action/result.
+        var state = $("#voiceState");
+        if (state) state.textContent = voiceText("Processing command…", "கட்டளை செயல்படுத்தப்படுகிறது…");
+
+        window.processCommand(command);
+      };
+
+      voiceRecognition.onnomatch = function () {
+        var state = $("#voiceState");
+        if (state) state.textContent = voiceText("I couldn't understand", "புரிந்துகொள்ள முடியவில்லை");
+        window.showToast(voiceText(
+          "Please try the command again.",
+          "கட்டளையை மீண்டும் சொல்லுங்கள்."
+        ));
+      };
+
+      voiceRecognition.onerror = function (event) {
+        voiceListening = false;
+        var mic = $("#mic"), state = $("#voiceState");
+        if (mic) mic.classList.remove("listening");
+
+        var messageEn = "Please try the voice command again.";
+        var messageTa = "குரல் கட்டளையை மீண்டும் முயற்சிக்கவும்.";
+
+        if (event && event.error === "not-allowed") {
+          messageEn = "Microphone permission is blocked. In Chrome, click the site/file icon near the address bar → Microphone → Allow, then reload once.";
+          messageTa = "மைக்ரோஃபோன் அனுமதி தடுக்கப்பட்டுள்ளது. Chrome-ல் முகவரி பட்டியின் அருகிலுள்ள தள/கோப்பு ஐகானை அழுத்தி Microphone → Allow என்பதைத் தேர்வு செய்து ஒருமுறை reload செய்யுங்கள்.";
+        } else if (event && event.error === "audio-capture") {
+          messageEn = "No microphone was found. Check the microphone.";
+          messageTa = "மைக்ரோஃபோன் கிடைக்கவில்லை. மைக்ரோஃபோனை சரிபார்க்கவும்.";
+        } else if (event && event.error === "no-speech") {
+          messageEn = "I didn't hear you. Tap the microphone and speak clearly.";
+          messageTa = "உங்கள் குரல் கேட்கவில்லை. மைக்ரோஃபோனை அழுத்தி தெளிவாக பேசுங்கள்.";
+        } else if (event && event.error === "network") {
+          messageEn = "Voice recognition needs an internet connection in this browser.";
+          messageTa = "இந்த உலாவியில் குரல் அறிதலுக்கு இணைய இணைப்பு தேவை.";
+        }
+
+        if (state) state.textContent = voiceText("Ready to listen", "கேட்கத் தயாராக உள்ளது");
+        window.showToast(voiceText(messageEn, messageTa));
+      };
+
+      voiceRecognition.onend = function () {
+        voiceListening = false;
+        var mic = $("#mic"), state = $("#voiceState");
+        if (mic) mic.classList.remove("listening");
+        if (state && !state.textContent.includes("புரிந்தது") && state.textContent !== "Command understood") {
+          state.textContent = voiceText("Ready to listen", "கேட்கத் தயாராக உள்ளது");
+        }
+      };
+    } catch (e) {
+      voiceRecognition = null;
+    }
+
+    return voiceRecognition;
+  }
+
+  window.startVoice = function () {
+    var mic = $("#mic");
+    var state = $("#voiceState");
+    var Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!Recognition) {
+      if (state) state.textContent = voiceText("Voice recognition unavailable", "குரல் அறிதல் கிடைக்கவில்லை");
+      window.showToast(voiceText(
+        "Use Chrome or Edge for voice control.",
+        "குரல் கட்டுப்பாட்டிற்கு Chrome அல்லது Edge பயன்படுத்துங்கள்."
+      ));
+      return false;
+    }
+
+    var recognition = setupVoiceRecognition();
+    if (!recognition) {
+      window.showToast(voiceText(
+        "Could not start voice recognition.",
+        "குரல் அறிதலை தொடங்க முடியவில்லை."
+      ));
+      return false;
+    }
+
+    if (voiceListening) return false;
+
+    // Set the recognition language every time, so changing Settings immediately
+    // changes the spoken language without refreshing the page.
+    recognition.lang = currentLanguage === "ta" ? "ta-IN" : "en-IN";
+
+    if (state) state.textContent = voiceText("Starting microphone…", "மைக்ரோஃபோனை தொடங்குகிறது…");
+
+    try {
+      recognition.start();
+    } catch (e) {
+      // InvalidStateError simply means it is already running.
+      if (e && e.name === "InvalidStateError") return false;
+      if (state) state.textContent = voiceText("Ready to listen", "கேட்கத் தயாராக உள்ளது");
+      window.showToast(voiceText(
+        "Microphone could not start. Allow microphone access in Chrome and try again.",
+        "மைக்ரோஃபோனை தொடங்க முடியவில்லை. Chrome-ல் மைக்ரோஃபோன் அனுமதியை Allow செய்து மீண்டும் முயற்சிக்கவும்."
+      ));
+    }
+
+    return false;
+  };
+
+  var currentLanguage = (function(){ try { return localStorage.getItem("language") || "en"; } catch(e){ return "en"; } })();
+
+  var translations = {
+    "SMART HOME":"ஸ்மார்ட் ஹோம்",
+    "AI Assistance":"AI உதவி",
+    "Dashboard":"டாஷ்போர்டு",
+    "Devices":"சாதனங்கள்",
+    "Sensors":"சென்சார்கள்",
+    "Automation":"ஆட்டோமேஷன்",
+    "Project":"திட்டம்",
+    "Local Prototype":"உள்ளூர் முன்மாதிரி",
+    "Browser controls are active. Hardware can be connected later through ESP32/API.":"உலாவி கட்டுப்பாடுகள் செயலில் உள்ளன. ESP32/API மூலம் வன்பொருளை பின்னர் இணைக்கலாம்.",
+    "Intelligent Home Control":"புத்திசாலி வீட்டு கட்டுப்பாடு",
+    "Voice Controlled Smart Home Assistance":"குரல் கட்டுப்படுத்தப்படும் ஸ்மார்ட் ஹோம் உதவி",
+    "Your home, intelligently connected.":"உங்கள் வீடு, புத்திசாலித்தனமாக இணைக்கப்பட்டுள்ளது.",
+    "Intelligent voice control, sensor-based automation, safety monitoring and energy-aware home assistance — all in one smart dashboard.":"புத்திசாலி குரல் கட்டுப்பாடு, சென்சார் அடிப்படையிலான ஆட்டோமேஷன், பாதுகாப்பு கண்காணிப்பு மற்றும் ஆற்றல் விழிப்புணர்வுடன் கூடிய வீட்டு உதவி — அனைத்தும் ஒரே ஸ்மார்ட் டாஷ்போர்டில்.",
+    "Voice Control":"குரல் கட்டுப்பாடு",
+    "IoT Sensors":"IoT சென்சார்கள்",
+    "Energy Saving":"ஆற்றல் சேமிப்பு",
+    "Safety":"பாதுகாப்பு",
+    "Team Member":"குழு உறுப்பினர்",
+    "Scan the project QR code → this introduction screen opens first.":"திட்டத்தின் QR குறியீட்டை ஸ்கேன் செய்தால் → இந்த அறிமுகத் திரை முதலில் திறக்கும்.",
+    "ENTER SMART HOME DASHBOARD →":"ஸ்மார்ட் ஹோம் டாஷ்போர்டை திறக்கவும் →",
+
+    "AI Voice Assistant":"AI குரல் உதவியாளர்",
+    "Ready to listen":"கேட்கத் தயாராக உள்ளது",
+    "Listening… speak now":"கேட்கிறது… இப்போது பேசுங்கள்",
+    "Hearing you…":"உங்கள் குரல் கேட்கிறது…",
+    "Command understood":"கட்டளை புரிந்தது",
+    "I couldn't understand":"புரிந்துகொள்ள முடியவில்லை",
+    "Last command:":"கடைசி கட்டளை:",
+    "None":"எதுவும் இல்லை",
+    "Turn on hall light":"ஹால் விளக்கை இயக்கவும்",
+    "Turn off everything":"அனைத்தையும் அணைக்கவும்",
+    "Check temperature":"வெப்பநிலையை பார்க்கவும்",
+    "Which light?":"எந்த விளக்கை இயக்க வேண்டும்?",
+    "I found more than one light.":"ஒன்றுக்கும் மேற்பட்ட விளக்குகள் உள்ளன.",
+    "I found more than one light. Which one should I turn on?":"ஒன்றுக்கும் மேற்பட்ட விளக்குகள் உள்ளன. எந்த விளக்கை இயக்க வேண்டும்?",
+    "I found more than one light. Which one should I turn off?":"ஒன்றுக்கும் மேற்பட்ட விளக்குகள் உள்ளன. எந்த விளக்கை அணைக்க வேண்டும்?",
+    "Which one should I turn on?":"எந்த விளக்கை இயக்க வேண்டும்?",
+    "Which one should I turn off?":"எந்த விளக்கை அணைக்க வேண்டும்?",
+    "Hall Light 1":"ஹால் விளக்கு 1",
+    "Hall Light 2":"ஹால் விளக்கு 2",
+    "Hall Fan":"ஹால் விசிறி",
+    "Bedroom Light 1":"படுக்கையறை விளக்கு 1",
+    "Bedroom Light 2":"படுக்கையறை விளக்கு 2",
+    "Bedroom Fan":"படுக்கையறை விசிறி",
+    "Kitchen Light":"சமையலறை விளக்கு",
+    "Kitchen Fan":"சமையலறை விசிறி",
+    "Kitchen Exhaust Fan":"சமையலறை எக்ஸாஸ்ட் விசிறி",
+    "Cancel":"ரத்து செய்",
+
+    "Live Home Overview":"நேரடி வீட்டு நிலவரம்",
+    "Temperature":"வெப்பநிலை",
+    "Devices ON":"இயங்கும் சாதனங்கள்",
+    "Energy Saved":"சேமிக்கப்பட்ட ஆற்றல்",
+    "Normal":"இயல்பு",
+    "Active":"செயலில்",
+    "Excellent":"சிறப்பு",
+    "Rooms":"அறைகள்",
+    "Tap a room to view its devices":"சாதனங்களை பார்க்க அறையைத் தேர்ந்தெடுக்கவும்",
+    "All Rooms":"அனைத்து அறைகள்",
+    "Hall":"ஹால்",
+    "Bedroom":"படுக்கையறை",
+    "Kitchen":"சமையலறை",
+    "Smart Devices":"ஸ்மார்ட் சாதனங்கள்",
+    "Showing all rooms":"அனைத்து அறைகளும் காட்டப்படுகின்றன",
+    "Showing":"காட்டப்படுகிறது",
+
+    "Hall Light 1":"ஹால் விளக்கு 1",
+    "Hall Light 2":"ஹால் விளக்கு 2",
+    "Hall Fan":"ஹால் விசிறி",
+    "Bedroom Light 1":"படுக்கையறை விளக்கு 1",
+    "Bedroom Light 2":"படுக்கையறை விளக்கு 2",
+    "Bedroom Fan":"படுக்கையறை விசிறி",
+    "Kitchen Light":"சமையலறை விளக்கு",
+    "Kitchen Fan":"சமையலறை விசிறி",
+    "Kitchen Exhaust Fan":"சமையலறை எக்ஸாஸ்ட் விசிறி",
+    "devices":"சாதனங்கள்",
+    "device":"சாதனம்",
+    "lights":"விளக்குகள்",
+    "light":"விளக்கு",
+    "fans":"விசிறிகள்",
+    "fan":"விசிறி",
+    "exhaust":"எக்ஸாஸ்ட்",
+
+    "Live Sensor Intelligence":"நேரடி சென்சார் நுண்ணறிவு",
+    "Refresh sensors":"சென்சார்களை புதுப்பிக்கவும்",
+    "LDR LIGHT":"LDR விளக்கு",
+    "MOTION":"இயக்கம்",
+    "TEMPERATURE":"வெப்பநிலை",
+    "SMOKE":"புகை",
+    "GAS":"வாயு",
+    "DOOR":"கதவு",
+    "Dark":"இருள்",
+    "Bright":"ஒளி",
+    "Detected":"கண்டறியப்பட்டது",
+    "Safe":"பாதுகாப்பானது",
+    "Closed":"மூடப்பட்டது",
+
+    "Smart Home Intelligence":"ஸ்மார்ட் ஹோம் நுண்ணறிவு",
+    "Context-aware suggestions":"சூழ்நிலைக்கேற்ற பரிந்துரைகள்",
+    "Lighting Insight":"விளக்கு நுண்ணறிவு",
+    "Energy Insight":"ஆற்றல் நுண்ணறிவு",
+    "Safety Insight":"பாதுகாப்பு நுண்ணறிவு",
+    "Low light + motion detected. Hall Light is recommended ON.":"குறைந்த ஒளி + இயக்கம் கண்டறியப்பட்டது. ஹால் விளக்கை இயக்க பரிந்துரைக்கப்படுகிறது.",
+    "நான்கு ஸ்மார்ட் விளக்குகளையும் தனித்தனியாக கட்டுப்படுத்தலாம். பயன்படுத்தாத விளக்குகளை அணைத்தால் மின்சார நுகர்வை குறைக்கலாம்.":"3 சாதனங்கள் தற்போது இயங்குகின்றன. பயன்படுத்தாத சாதனங்களை அணைத்தால் மின்சார நுகர்வை குறைக்கலாம்.",
+    "All safety sensors are currently within normal limits.":"அனைத்து பாதுகாப்பு சென்சார்களும் தற்போது இயல்பான நிலையில் உள்ளன.",
+
+    "Energy Monitor":"ஆற்றல் கண்காணிப்பு",
+    "Today":"இன்று",
+    "estimated consumption":"மதிப்பிடப்பட்ட நுகர்வு",
+    "Usage 63%":"பயன்பாடு 63%",
+    "Saving 18%":"சேமிப்பு 18%",
+    "Safety Center":"பாதுகாப்பு மையம்",
+    "SAFE":"பாதுகாப்பானது",
+    "Home is protected":"வீடு பாதுகாப்பாக உள்ளது",
+    "Smoke, gas and door sensors are normal.":"புகை, வாயு மற்றும் கதவு சென்சார்கள் இயல்பாக உள்ளன.",
+    "Emergency OFF":"அவசர நிறுத்தம்",
+
+    "Activity Timeline":"செயல்பாட்டு வரலாறு",
+    "Live":"நேரலை",
+    "System started":"கணினி தொடங்கப்பட்டது",
+    "LDR detected low light":"LDR குறைந்த ஒளியை கண்டறிந்தது",
+    "Motion detected":"இயக்கம் கண்டறியப்பட்டது",
+    "Hall Light ON":"ஹால் விளக்கு இயக்கப்பட்டது",
+
+    "Project Team":"திட்டக் குழு",
+    "Voice Controlled Smart Home Assistance combines voice interaction, sensor intelligence, automation, safety monitoring and energy awareness in one interface.":"குரல் தொடர்பு, சென்சார் நுண்ணறிவு, ஆட்டோமேஷன், பாதுகாப்பு கண்காணிப்பு மற்றும் ஆற்றல் விழிப்புணர்வை ஒரே இடைமுகத்தில் குரல் கட்டுப்படுத்தப்படும் ஸ்மார்ட் ஹோம் உதவி ஒருங்கிணைக்கிறது.",
+    "About the Project":"திட்டத்தைப் பற்றி",
+    "This dashboard is a fully interactive browser prototype. Voice recognition, device controls, simulated sensors, automation insights, emergency shutdown, activity history, theme control and room filtering work locally in the browser. For real appliances and sensors, connect the interface to an ESP32/Arduino backend or IoT platform.":"இந்த டாஷ்போர்டு முழுமையாக செயல்படும் உலாவி முன்மாதிரி ஆகும். குரல் அறிதல், சாதனக் கட்டுப்பாடுகள், உருவகப்படுத்தப்பட்ட சென்சார்கள், ஆட்டோமேஷன் நுண்ணறிவுகள், அவசர நிறுத்தம், செயல்பாட்டு வரலாறு, தீம் கட்டுப்பாடு மற்றும் அறை வடிகட்டுதல் ஆகியவை உலாவியிலேயே இயங்குகின்றன. உண்மையான சாதனங்கள் மற்றும் சென்சார்களுக்கு ESP32/Arduino backend அல்லது IoT தளத்துடன் இணைக்கவும்.",
+    "Team Members":"குழு உறுப்பினர்கள்",
+
+    "Settings":"அமைப்புகள்",
+    "Theme":"தீம்",
+    "English":"ஆங்கிலம்",
+    "தமிழ் (Tamil)":"தமிழ்",
+    "Language":"மொழி",
+    "Voice commands will use the selected language.":"தேர்ந்தெடுக்கப்பட்ட மொழியில் குரல் கட்டளைகள் செயல்படும்.",
+    "Starting microphone…":"மைக்ரோஃபோனை தொடங்குகிறது…",
+    "Voice recognition unavailable":"குரல் அறிதல் கிடைக்கவில்லை",
+    "Ready to listen":"கேட்கத் தயாராக உள்ளது",
+    "Command understood":"கட்டளை புரிந்தது",
+    "I couldn't understand":"புரிந்துகொள்ள முடியவில்லை"
+  };
+
+  var originalText = new WeakMap();
+
+  function normalizeTranslationKey(text) {
+    return String(text)
+      .replace(/^[\s\p{Extended_Pictographic}\p{Emoji_Presentation}\p{Symbol}\uFE0F\u200D⌂◈◉✦ⓘ↻●]+/u, "")
+      .trim();
+  }
+
+  function translateText(original, lang) {
+    var raw = String(original);
+    var key = raw.trim();
+    if (!key) return raw;
+
+    // Exact match first.
+    if (lang === "ta" && translations[key]) {
+      return raw.replace(key, translations[key]);
+    }
+    if (lang === "en") return raw;
+
+    // Emoji/icon-prefixed headings and labels.
+    var normalized = normalizeTranslationKey(key);
+    if (lang === "ta" && translations[normalized]) {
+      return raw.replace(normalized, translations[normalized]);
+    }
+
+    // Room/device count text.
+    if (lang === "ta") {
+      var m = key.match(/^(\d+)\s+devices?$/i);
+      if (m) return m[1] + " சாதனங்கள்";
+      m = key.match(/^(\d+)\s+lights?\s*•\s*(\d+)\s+fans?\s*•\s*(\d+)\s+exhaust$/i);
+      if (m) return m[1]+" விளக்குகள் • "+m[2]+" விசிறிகள் • "+m[3]+" எக்ஸாஸ்ட்";
+      m = key.match(/^(\d+)\s+lights?\s*•\s*(\d+)\s+fan$/i);
+      if (m) return m[1]+" விளக்குகள் • "+m[2]+" விசிறி";
+      m = key.match(/^(\d+)\s+light\s*•\s*(\d+)\s+fan\s*•\s*(\d+)\s+exhaust$/i);
+      if (m) return m[1]+" விளக்கு • "+m[2]+" விசிறி • "+m[3]+" எக்ஸாஸ்ட்";
+    }
+    return raw;
+  }
+
+  function applyLanguage(lang) {
+    currentLanguage = lang === "ta" ? "ta" : "en";
+    document.documentElement.lang = currentLanguage === "ta" ? "ta" : "en";
+
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    var nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+
+    nodes.forEach(function(node){
+      if (!node.textContent.trim()) return;
+      if (!originalText.has(node)) originalText.set(node, node.textContent);
+
+      node.textContent = translateText(originalText.get(node), currentLanguage);
+    });
+
+    var note = $("#languageNote");
+    if (note) note.textContent = currentLanguage === "ta"
+      ? "தேர்ந்தெடுக்கப்பட்ட மொழியில் குரல் கட்டளைகள் செயல்படும்."
+      : "Voice commands will use the selected language.";
+
+    var state = $("#voiceState");
+    if (state && !state.classList.contains("listening")) {
+      state.textContent = currentLanguage === "ta" ? "கேட்கத் தயாராக உள்ளது" : "Ready to listen";
+    }
+
+    updateSettingsSelection();
+    updateDateLanguage();
+
+    // Dynamic voice-clarification UI must follow the selected language too.
+    var clarifier = $("#commandClarifier");
+    if (clarifier && clarifier.classList.contains("show")) {
+      var cTitle = clarifier.querySelector("h3");
+      var cText = $("#clarifierText");
+      var cCancel = clarifier.querySelector(".clarifier-cancel");
+      if (cTitle) cTitle.textContent = currentLanguage === "ta" ? "எந்த விளக்கு?" : "Which light?";
+      if (cText) {
+        var isTurnOn = cText.getAttribute("data-turn-on") !== "false";
+        cText.textContent = currentLanguage === "ta"
+          ? (isTurnOn
+              ? "ஒன்றுக்கும் மேற்பட்ட விளக்குகள் உள்ளன. எந்த விளக்கை இயக்க வேண்டும்?"
+              : "ஒன்றுக்கும் மேற்பட்ட விளக்குகள் உள்ளன. எந்த விளக்கை அணைக்க வேண்டும்?")
+          : (isTurnOn
+              ? "I found more than one light. Which one should I turn on?"
+              : "I found more than one light. Which one should I turn off?");
+      }
+      if (cCancel) cCancel.textContent = currentLanguage === "ta" ? "ரத்து செய்" : "Cancel";
+      clarifier.querySelectorAll(".clarifier-option").forEach(function(btn) {
+        var raw = btn.getAttribute("data-device-name");
+        if (raw) btn.textContent = "💡 " + localizedDeviceName(raw);
+      });
+    }
+
+    try { localStorage.setItem("language", currentLanguage); } catch(e){}
+  }
+
+  function updateDateLanguage() {
+    var date = $("#dateText");
+    if (!date) return;
+    var now = new Date();
+    date.textContent = now.toLocaleDateString(
+      currentLanguage === "ta" ? "ta-IN" : "en-IN",
+      {weekday:"long", year:"numeric", month:"long", day:"numeric"}
+    );
+  }
+
+  function updateSettingsSelection(){
+    var lang = currentLanguage;
+    ["englishOption","tamilOption","darkThemeOption","lightThemeOption"].forEach(function(id){
+      var el=$("#"+id); if(el) el.classList.remove("active");
+    });
+    var langEl = lang==="ta" ? $("#tamilOption") : $("#englishOption");
+    if(langEl) langEl.classList.add("active");
+
+    var isLight=document.body.classList.contains("light");
+    var themeEl=isLight ? $("#lightThemeOption") : $("#darkThemeOption");
+    if(themeEl) themeEl.classList.add("active");
+  }
+
+  window.setLanguage = function(lang){
+    applyLanguage(lang);
+    var state=$("#voiceState");
+    if(state) state.textContent = lang==="ta" ? "கேட்கத் தயாராக உள்ளது" : "Ready to listen";
+  };
+
+  window.openSettings = function(){
+    applyLanguage(currentLanguage);
+    var overlay=$("#settingsOverlay");
+    if(overlay) overlay.classList.add("show");
+  };
+
+  window.closeSettings = function(){
+    var overlay=$("#settingsOverlay");
+    if(overlay) overlay.classList.remove("show");
+  };
+
+  window.setTheme = function(theme){
+    var light = theme === "light";
+    document.body.classList.toggle("light", light);
+
+    if(light){
+      document.documentElement.style.setProperty("--bg", "#eef4fb");
+      document.documentElement.style.setProperty("--panel", "#ffffff");
+      document.documentElement.style.setProperty("--panel2", "#ffffff");
+      document.documentElement.style.setProperty("--text", "#172235");
+      document.documentElement.style.setProperty("--muted", "#5d6c80");
+    }else{
+      document.documentElement.style.setProperty("--bg", "#07111f");
+      document.documentElement.style.setProperty("--panel", "rgba(15,28,48,.78)");
+      document.documentElement.style.setProperty("--panel2", "rgba(9,20,36,.88)");
+      document.documentElement.style.setProperty("--text", "#f4f8ff");
+      document.documentElement.style.setProperty("--muted", "#91a2b8");
+    }
+
+    try { localStorage.setItem("theme", light ? "light" : "dark"); } catch(e){}
+    updateSettingsSelection();
+  };
+
+  window.toggleTheme = function(){
+    window.setTheme(document.body.classList.contains("light") ? "dark" : "light");
+  };
+
+  window.openAbout = function () {
+    var modal = $("#modal");
+    if (modal) modal.classList.add("show");
+  };
+
+  window.closeAbout = function () {
+    var modal = $("#modal");
+    if (modal) modal.classList.remove("show");
+  };
+
+  window.buildChart = function () {
+    var chart = $("#chart");
+    if (!chart) return;
+
+    chart.innerHTML = "";
+    [35,55,42,70,60,82,63,75,50,68,77,63].forEach(function (v) {
+      var bar = document.createElement("div");
+      bar.className = "barcol";
+      bar.style.height = v + "%";
+      chart.appendChild(bar);
+    });
+  };
+
+  var highEnergyNotified = false;
+
+  function getCurrentEnergyConsumption() {
+    // Prefer the live energy value if the dashboard exposes one.
+    var candidates = [
+      window.energyConsumption,
+      window.currentEnergy,
+      window.energyUsage,
+      window.energyUsed
+    ];
+
+    for (var i = 0; i < candidates.length; i++) {
+      if (typeof candidates[i] === "number" && isFinite(candidates[i])) {
+        return candidates[i];
+      }
+    }
+
+    // Otherwise estimate usage from active devices.
+    var active = $$(".device.on").length;
+    return active * 0.35;
+  }
+
+  function checkHighEnergyConsumption() {
+    var energy = getCurrentEnergyConsumption();
+    var HIGH_ENERGY_THRESHOLD = 2.5;
+
+    var energyCard = document.querySelector('[data-energy-monitor], .energy-monitor');
+    if (energy >= HIGH_ENERGY_THRESHOLD) {
+      if (energyCard) energyCard.classList.add("energy-warning");
+
+      if (!highEnergyNotified) {
+        highEnergyNotified = true;
+        window.showToast(
+          "⚠️ High energy consumption detected. Consider switching off unused devices."
+        );
+        window.addActivity(
+          "⚠️ Energy Alert → High consumption (" + energy.toFixed(1) + " kWh)"
+        );
+
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("Smart Home Energy Alert", {
+            body: "Energy consumption is high. Consider switching off unused devices."
+          });
+        }
+      }
+    } else {
+      highEnergyNotified = false;
+      if (energyCard) energyCard.classList.remove("energy-warning");
+    }
+  }
+
+  function tick() {
+    checkHighEnergyConsumption();
+    var now = new Date();
+    var clock = $("#clock");
+    var date = $("#dateText");
+
+    if (clock) {
+      clock.textContent = now.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    if (date) {
+      date.textContent = now.toLocaleDateString(
+        currentLanguage === "ta" ? "ta-IN" : "en-IN",
+        {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        }
+      );
+    }
+  }
+
+  // THIS IS THE IMPORTANT PART:
+  // The dashboard is already loaded. Clicking Enter ONLY hides the intro.
+  window.enterDashboard = function () {
+    var intro = document.getElementById("introScreen");
+    var dashboard = document.getElementById("mainDashboard");
+
+    if (!dashboard) {
+      alert("Dashboard could not be found.");
+      return false;
+    }
+
+    dashboard.style.display = "flex";
+    dashboard.style.visibility = "visible";
+    dashboard.style.opacity = "1";
+
+    if (intro) {
+      intro.classList.add("hide");
+      intro.style.display = "none";
+    }
+
+    try {
+      window.addActivity("🏠 Entered Smart Home Dashboard");
+      window.showToast("Welcome to your Smart Home Dashboard");
+    } catch (e) {}
+
+    window.scrollTo(0, 0);
+    return false;
+  };
+
+
+  /* ===== Motion-based automatic room lighting ===== */
+  var motionAutomationEnabled = true;
+  var motionAutoTimers = {};
+
+  function getRoomLight(room) {
+    var lights = [];
+    $$(".device").forEach(function (device) {
+      var name = (device.querySelector(".device-name")?.textContent || "").toLowerCase();
+      var roomText = (device.dataset.room || device.getAttribute("data-room") || "").toLowerCase();
+      var isLight = name.indexOf("light") !== -1;
+      if (isLight && (roomText === room || name.indexOf(room) !== -1)) lights.push(device);
+    });
+    return lights[0] || null;
+  }
+
+  function setDeviceCardState(device, on, reason) {
+    if (!device) return;
+    var btn = device.querySelector(".device-toggle");
+    if (!btn) return;
+
+    var currentlyOn = device.classList.contains("on");
+    if (currentlyOn === on) return;
+
+    window.toggleDevice(btn);
+    if (reason) {
+      try { window.addActivity(reason); } catch(e) {}
+    }
+  }
+
+  function motionAutomationText() {
+    var isTamil = (typeof currentLanguage !== "undefined" && currentLanguage === "ta");
+    var title = document.getElementById("motionAutomationTitle");
+    var status = document.getElementById("motionAutomationStatus");
+    var note = document.getElementById("motionAutomationNote");
+    var toggle = document.getElementById("motionAutoToggle");
+
+    if (title) title.textContent = isTamil ? "👤 இயக்கம் மூலம் தானியங்கி விளக்கு" : "👤 Motion Light Automation";
+    if (status) status.textContent = motionAutomationEnabled
+      ? (isTamil ? "தானியங்கி அறை விளக்கு இயக்கம் செயல்பாட்டில் உள்ளது." : "Automatic room lighting is enabled.")
+      : (isTamil ? "தானியங்கி அறை விளக்கு இயக்கம் நிறுத்தப்பட்டுள்ளது." : "Automatic room lighting is disabled.");
+    if (note) note.textContent = isTamil
+      ? "இருள் மற்றும் இயக்கம் கண்டறியப்பட்டால் அந்த அறையின் விளக்கு இயக்கப்படும். இயக்கம் நின்றதும் விளக்கு அணைக்கப்படும்."
+      : "When it is dark and motion is detected, the room light turns ON. After motion stops, it turns OFF.";
+    if (toggle) {
+      toggle.textContent = motionAutomationEnabled ? (isTamil ? "இயக்கு" : "ON") : (isTamil ? "நிறுத்து" : "OFF");
+      toggle.classList.toggle("on", motionAutomationEnabled);
+      toggle.setAttribute("aria-pressed", String(motionAutomationEnabled));
+    }
+  }
+
+  window.toggleMotionAutomation = function () {
+    motionAutomationEnabled = !motionAutomationEnabled;
+    try { localStorage.setItem("motionAutomation", motionAutomationEnabled ? "1" : "0"); } catch(e) {}
+    motionAutomationText();
+    try {
+      window.showToast(
+        motionAutomationEnabled
+          ? ((typeof currentLanguage !== "undefined" && currentLanguage === "ta") ? "தானியங்கி விளக்கு இயக்கம் செயல்படுத்தப்பட்டது" : "Motion light automation enabled")
+          : ((typeof currentLanguage !== "undefined" && currentLanguage === "ta") ? "தானியங்கி விளக்கு இயக்கம் நிறுத்தப்பட்டது" : "Motion light automation disabled")
+      );
+    } catch(e) {}
+  };
+
+  function runMotionAutomation() {
+    if (!motionAutomationEnabled) return;
+
+    // The prototype has separate LDR and Motion sensor cards.
+    // Motion is applied to the Hall light for this automation.
+    var motionCard = null;
+    var ldrCard = null;
+
+    $$(".sensor").forEach(function (card) {
+      var name = (card.querySelector(".sensor-name")?.textContent || "").toLowerCase();
+      var value = (card.querySelector(".sensor-value")?.textContent || "").toLowerCase();
+
+      if (name.indexOf("motion") !== -1 || name.indexOf("இயக்கம்") !== -1) {
+        motionCard = card;
+      }
+      if (name.indexOf("ldr") !== -1 || name.indexOf("light") !== -1 || name.indexOf("ஒளி") !== -1) {
+        ldrCard = card;
+      }
+    });
+
+    if (!motionCard) return;
+
+    var motionLocation = document.getElementById("motionLocationValue");
+    if (motionLocation) {
+      motionLocation.textContent =
+        (typeof currentLanguage !== "undefined" && currentLanguage === "ta")
+          ? "ஹால்"
+          : "Hall";
+    }
+
+    var motionValue = (motionCard.querySelector(".sensor-value")?.textContent || motionCard.textContent || "").toLowerCase();
+    var ldrValue = ldrCard
+      ? (ldrCard.querySelector(".sensor-value")?.textContent || ldrCard.textContent || "").toLowerCase()
+      : "";
+
+    var motionDetected =
+      motionValue.indexOf("detected") !== -1 ||
+      motionValue.indexOf("கண்டறியப்பட்டது") !== -1;
+
+    var dark =
+      ldrValue.indexOf("dark") !== -1 ||
+      ldrValue.indexOf("இருள்") !== -1;
+
+    var hallLight = getRoomLight("hall");
+    if (!hallLight) return;
+
+    if (motionDetected && dark) {
+      clearTimeout(motionAutoTimers.hall);
+
+      if (!hallLight.classList.contains("on")) {
+        setDeviceCardState(
+          hallLight,
+          true,
+          (typeof currentLanguage !== "undefined" && currentLanguage === "ta")
+            ? "👤 இயக்கம் கண்டறியப்பட்டது மற்றும் இருள் உள்ளது — ஹால் விளக்கு தானாக இயக்கப்பட்டது"
+            : "👤 Motion detected in dark conditions — Hall Light turned ON automatically"
+        );
+      }
+    } else if (!motionDetected) {
+      clearTimeout(motionAutoTimers.hall);
+
+      motionAutoTimers.hall = setTimeout(function () {
+        var light = getRoomLight("hall");
+
+        if (light && light.classList.contains("on")) {
+          setDeviceCardState(
+            light,
+            false,
+            (typeof currentLanguage !== "undefined" && currentLanguage === "ta")
+              ? "🚶 இயக்கம் இல்லை — ஹால் விளக்கு தானாக அணைக்கப்பட்டது"
+              : "🚶 No motion — Hall Light turned OFF automatically"
+          );
+        }
+      }, 5000);
+    }
+  }
+
+  window.runMotionAutomation = runMotionAutomation;
+
+  document.addEventListener("DOMContentLoaded", function () {
+    try {
+      var savedTheme = localStorage.getItem("theme") || "dark";
+      var savedLanguage = localStorage.getItem("language") || "en";
+      window.setTheme(savedTheme);
+      currentLanguage = savedLanguage === "ta" ? "ta" : "en";
+      applyLanguage(currentLanguage);
+    } catch(e) {
+      window.setTheme("dark");
+      applyLanguage("en");
+    }
+
+    // Always show the dashboard behind the opening screen.
+    var dashboard = document.getElementById("mainDashboard");
+    if (dashboard) {
+      dashboard.style.display = "flex";
+      dashboard.style.visibility = "visible";
+      dashboard.style.opacity = "1";
+    }
+
+    var settingsBtn = document.getElementById("settingsBtn");
+    if (settingsBtn) {
+      settingsBtn.addEventListener("click", function (event) {
+        event.preventDefault();
+        try {
+          window.openSettings();
+        } catch (e) {
+          var overlay = document.getElementById("settingsOverlay");
+          if (overlay) overlay.classList.add("show");
+        }
+      });
+    }
+
+    var enter = document.getElementById("enterDashboardBtn");
+    if (enter) {
+      enter.addEventListener("click", function (event) {
+        event.preventDefault();
+        window.enterDashboard();
+      });
+    }
+
+
+    var darkBtn = document.getElementById("darkThemeOption");
+    var lightBtn = document.getElementById("lightThemeOption");
+    var englishBtn = document.getElementById("englishOption");
+    var tamilBtn = document.getElementById("tamilOption");
+
+    if (darkBtn) darkBtn.addEventListener("click", function(){ window.setTheme("dark"); });
+    if (lightBtn) lightBtn.addEventListener("click", function(){ window.setTheme("light"); });
+    if (englishBtn) englishBtn.addEventListener("click", function(){ window.setLanguage("en"); });
+    if (tamilBtn) tamilBtn.addEventListener("click", function(){ window.setLanguage("ta"); });
+
+    try {
+      motionAutomationEnabled = localStorage.getItem("motionAutomation") !== "0";
+    } catch(e) {}
+    motionAutomationText();
+
+    window.loadState();
+    refreshDeviceStateTheme();
+    loadActivity();
+    runMotionAutomation();
+    window.buildChart();
+    tick();
+
+    setInterval(tick, 1000);
+    setInterval(function () {
+      window.simulateSensors();
+      setTimeout(window.runMotionAutomation, 50);
+    }, 12000);
+  });
+})();
+
+// ===== SECURITY ALERT: HALL / BEDROOM ENTRY =====
+window.showSecurityAlert = function(room) {
+  const old = document.getElementById("securityAlert");
+  if (old) old.remove();
+
+  const lang = document.documentElement.lang === "ta" ? "ta" : "en";
+  const text = lang === "ta"
+    ? {
+        title: "🚨 பாதுகாப்பு எச்சரிக்கை",
+        message: `${room === "Hall" ? "ஹால்" : "படுக்கையறை"} பகுதியில் இயக்கம் கண்டறியப்பட்டது. ஒருவர் உள்ளே நுழைந்திருக்கலாம்.`,
+        badge: `📍 இடம்: ${room === "Hall" ? "ஹால்" : "படுக்கையறை"}`
+      }
+    : {
+        title: "🚨 SECURITY ALERT",
+        message: `Motion detected in the ${room.toLowerCase()}. Someone may have entered the room.`,
+        badge: `📍 Location: ${room}`
+      };
+
+  const box = document.createElement("div");
+  box.id = "securityAlert";
+  box.className = "security-alert";
+  box.innerHTML = `
+    <div class="security-title">${text.title}</div>
+    <div class="security-message">${text.message}</div>
+    <div class="motion-location-badge">${text.badge}</div>
+    <div class="security-time">${new Date().toLocaleTimeString()}</div>
+  `;
+  document.body.appendChild(box);
+
+  setTimeout(() => {
+    if (box && box.parentNode) box.remove();
+  }, 7000);
+
+  // Browser notification, when permission has already been granted.
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification(text.title, {
+      body: text.message
+    });
+  }
+};
+
+window.handleRoomMotion = function(room, detected) {
+  if (!detected) return;
+
+  const now = Date.now();
+  window._lastSecurityAlert = window._lastSecurityAlert || {};
+  if (now - (window._lastSecurityAlert[room] || 0) < 10000) return;
+  window._lastSecurityAlert[room] = now;
+
+  showSecurityAlert(room);
+
+  if (typeof addActivity === "function") {
+    const label = room === "Hall" ? "Hall" : "Bedroom";
+    addActivity(`🚨 Motion detected — ${label} entry alert`);
+  }
+};
+
+// Request notification permission only once, from a normal user interaction.
+window.enableSecurityNotifications = function() {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().catch(() => {});
+  }
+};
+
+</script>
+
+</body>
+</html>
+
+<script id="security-motion-hook">
+(function(){
+  if (window.__securityMotionHooked) return;
+  window.__securityMotionHooked = true;
+
+  const originalSimulateSensors = window.simulateSensors;
+  if (typeof originalSimulateSensors !== "function") return;
+
+  window.simulateSensors = function(){
+    const result = originalSimulateSensors.apply(this, arguments);
+
+    // Use the dashboard's current motion state when available.
+    const motionText = document.body.innerText.toLowerCase();
+    const detected = /motion\s*detected|இயக்கம்\s*கண்டறியப்பட்டது/.test(motionText);
+
+    if (detected) {
+      // If the dashboard has an explicit active room, use it.
+      let room = "Hall";
+      const activeRoom = document.querySelector('.room.selected, [data-room].active');
+      if (activeRoom && /bedroom/i.test(activeRoom.getAttribute("data-room") || activeRoom.textContent)) {
+        room = "Bedroom";
+      }
+
+      // If a room-specific motion sensor/state exists, prefer it.
+      const bedroomMotion = document.querySelector('[data-room="Bedroom"] .motion, [data-room="Bedroom"][data-motion="detected"]');
+      const hallMotion = document.querySelector('[data-room="Hall"] .motion, [data-room="Hall"][data-motion="detected"]');
+      if (bedroomMotion) room = "Bedroom";
+      else if (hallMotion) room = "Hall";
+
+      handleRoomMotion(room, true);
+    }
+    return result;
+  };
+})();
+</script>
